@@ -66,6 +66,21 @@
       return emaArray;
     }
 
+    function findCrosses(shortEma, longEma, labels) {
+      let crosses = [];
+      for (let i = 1; i < shortEma.length; i++) {
+        if (shortEma[i - 1] < longEma[i - 1] && shortEma[i] >= longEma[i]) {
+          // Golden Cross
+          crosses.push({ x: labels[i], y: shortEma[i], type: "golden" });
+        }
+        if (shortEma[i - 1] > longEma[i - 1] && shortEma[i] <= longEma[i]) {
+          // Death Cross
+          crosses.push({ x: labels[i], y: shortEma[i], type: "death" });
+        }
+      }
+      return crosses;
+    }
+
     function calcSMA(prices, period) {
       let sma = [];
       for (let i = 0; i < prices.length; i++) {
@@ -165,6 +180,8 @@
         }
       };
 
+      const crosses = findCrosses(ema21, ema50, labels);
+
       // EMA
       new Chart(document.getElementById(`${title}-ema`), {
         type: "line",
@@ -174,7 +191,21 @@
             { label: "Price", data: prices, borderColor: "white", fill: false, pointRadius: 0 },
             { label: "EMA 9", data: ema9, borderColor: "red", fill: false, pointRadius: 0 },
             { label: "EMA 21", data: ema21, borderColor: "yellow", fill: false, pointRadius: 0 },
-            { label: "EMA 50", data: ema50, borderColor: "green", fill: false, pointRadius: 0 }
+            { label: "EMA 50", data: ema50, borderColor: "green", fill: false, pointRadius: 0 },
+            {
+              label: "Golden Cross",
+              data: crosses.filter(c => c.type === "golden"),
+              pointBackgroundColor: "lime",
+              showLine: false,
+              pointRadius: 6
+            },
+            {
+              label: "Death Cross",
+              data: crosses.filter(c => c.type === "death"),
+              pointBackgroundColor: "red",
+              showLine: false,
+              pointRadius: 6
+            }
           ]
         },
         options: commonOptions

@@ -152,7 +152,30 @@
       const upper = sma20.map((s, i) => s && std20[i] ? s + 2 * std20[i] : null);
       const lower = sma20.map((s, i) => s && std20[i] ? s - 2 * std20[i] : null);
 
-      const opts = { plugins: { legend: { labels: { color: "#ddd" } } }, scales: { x: { ticks: { color: "#aaa" }, grid: { color: "#333" } }, y: { ticks: { color: "#aaa" }, grid: { color: "#333" } } } };
+      const opts = {
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { labels: { color: "#ddd" } },
+          tooltip: {
+            backgroundColor: "#1e293b",
+            titleColor: "#f8fafc",
+            bodyColor: "#e2e8f0",
+            callbacks: {
+              label: function (context) {
+                let label = context.dataset.label || "";
+                if (context.parsed.y !== null) {
+                  label += ": " + context.parsed.y.toFixed(2);
+                }
+                return label;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: "#aaa" }, grid: { color: "#333" } },
+          y: { ticks: { color: "#aaa" }, grid: { color: "#333" } }
+        }
+      };
 
       new Chart(document.getElementById(`${prefix}-ema`), {
         type: "line", data: {
@@ -197,13 +220,27 @@
       });
     });
 
-    // Load data từ Google Sheet
-    Papa.parse(sheetURL, {
-      download: true, header: true, complete: function (results) {
-        const labels = results.data.map(r => r.Date), buy = results.data.map(r => +r.Buy), sell = results.data.map(r => +r.Sell);
-        buildCharts("buy", labels, buy); buildCharts("sell", labels, sell);
-      }
-    });
+    // ==== Main ====
+    async function main() {
+      const response = await fetch(url);
+      const text = await response.text();
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const labels = [];
+          const buy = [];
+          const sell = [];
+          results.data.forEach(row => {
+            labels.push(row["Date"]);
+            buy.push(parseFloat(row["Buy"]));
+            sell.push(parseFloat(row["Sell"]));
+          });
+          createCharts("charts", "Buy", labels, buy);
+          createCharts("charts", "Sell", labels, sell);
+        }
+      });
+    }
   </script>
 </body>
 

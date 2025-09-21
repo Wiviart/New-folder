@@ -1,191 +1,271 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>VN Gold Charts with Indicators</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
+  <script src="url.js"></script>
   <style>
     body {
+      margin: 0;
+      font-family: Arial, sans-serif;
       background: #0f172a;
       color: #e2e8f0;
-      font-family: Arial, sans-serif;
-      margin: 20px;
     }
-    h2 { text-align: center; margin-bottom: 20px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    h1 {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+
     .card {
       background: #1e293b;
       border-radius: 10px;
-      padding: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      padding: 15px;
+      flex: 1 1 45%;
+      min-width: 300px;
     }
-    .card-header { border-bottom: 1px solid #334155; margin-bottom: 10px; }
-    .tabs { display: flex; list-style: none; margin: 0; padding: 0; }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 10px;
+    }
+
     .tab {
+      flex: 1;
+      padding: 8px;
+      text-align: center;
       cursor: pointer;
-      padding: 6px 12px;
-      font-size: 14px;
+      background: #334155;
+      border-radius: 5px;
+      margin: 2px;
+      font-weight: bold;
       color: #94a3b8;
     }
+
     .tab.active {
-      background: #334155;
-      border-radius: 6px;
-      color: #f8fafc;
+      background: #0ea5e9;
+      color: white;
     }
-    canvas { width: 100% !important; height: 400px !important; }
+
+    .chart-container {
+      display: none;
+      height: 300px;
+    }
+
+    .chart-container.active {
+      display: block;
+    }
   </style>
 </head>
-<body>
-  <h2>VN Gold Charts with Indicators</h2>
-  <div class="grid">
-    <!-- BUY CARD -->
-    <div class="card">
-      <div class="card-header">
-        <ul class="tabs">
-          <li class="tab active" data-target="buy-ema">EMA</li>
-          <li class="tab" data-target="buy-macd">MACD</li>
-          <li class="tab" data-target="buy-rsi">RSI</li>
-          <li class="tab" data-target="buy-bollinger">Bollinger</li>
-        </ul>
-      </div>
-      <div class="card-body">
-        <canvas id="buy-ema"></canvas>
-        <canvas id="buy-macd" style="display:none"></canvas>
-        <canvas id="buy-rsi" style="display:none"></canvas>
-        <canvas id="buy-bollinger" style="display:none"></canvas>
-      </div>
-    </div>
 
-    <!-- SELL CARD -->
+<body>
+  <h1>VN Gold Charts with Indicators</h1>
+  <div class="container">
     <div class="card">
-      <div class="card-header">
-        <ul class="tabs">
-          <li class="tab active" data-target="sell-ema">EMA</li>
-          <li class="tab" data-target="sell-macd">MACD</li>
-          <li class="tab" data-target="sell-rsi">RSI</li>
-          <li class="tab" data-target="sell-bollinger">Bollinger</li>
-        </ul>
+      <h2 style="text-align:center">Buy</h2>
+      <div class="tabs">
+        <div class="tab active" data-target="buy-ema">EMA</div>
+        <div class="tab" data-target="buy-macd">MACD</div>
+        <div class="tab" data-target="buy-rsi">RSI</div>
+        <div class="tab" data-target="buy-boll">Bollinger</div>
       </div>
-      <div class="card-body">
-        <canvas id="sell-ema"></canvas>
-        <canvas id="sell-macd" style="display:none"></canvas>
-        <canvas id="sell-rsi" style="display:none"></canvas>
-        <canvas id="sell-bollinger" style="display:none"></canvas>
+      <div id="buy-ema" class="chart-container active"><canvas></canvas></div>
+      <div id="buy-macd" class="chart-container"><canvas></canvas></div>
+      <div id="buy-rsi" class="chart-container"><canvas></canvas></div>
+      <div id="buy-boll" class="chart-container"><canvas></canvas></div>
+    </div>
+    <div class="card">
+      <h2 style="text-align:center">Sell</h2>
+      <div class="tabs">
+        <div class="tab active" data-target="sell-ema">EMA</div>
+        <div class="tab" data-target="sell-macd">MACD</div>
+        <div class="tab" data-target="sell-rsi">RSI</div>
+        <div class="tab" data-target="sell-boll">Bollinger</div>
       </div>
+      <div id="sell-ema" class="chart-container active"><canvas></canvas></div>
+      <div id="sell-macd" class="chart-container"><canvas></canvas></div>
+      <div id="sell-rsi" class="chart-container"><canvas></canvas></div>
+      <div id="sell-boll" class="chart-container"><canvas></canvas></div>
     </div>
   </div>
 
-<script>
-// ===== Dummy Data (replace bằng dữ liệu API của bạn) =====
-const labels = Array.from({length: 50}, (_,i) => "Day " + (i+1));
-const prices = labels.map((_,i)=>100+Math.sin(i/5)*5+i*0.1);
-const ema9 = prices.map(p=>p*0.95);
-const ema21 = prices.map(p=>p*0.9);
-const ema50 = prices.map(p=>p*0.85);
-const macd = prices.map((p,i)=>Math.sin(i/10));
-const signal = macd.map((v,i)=>v*0.8);
-const rsi = prices.map((p,i)=>50+Math.sin(i/7)*20);
-const bollUpper = prices.map(p=>p+5);
-const bollMiddle = prices.map(p=>p);
-const bollLower = prices.map(p=>p-5);
-
-// ===== Dark Mode Options =====
-const darkOptions = {
-  plugins: {
-    legend: {
-      labels: {
-        color: "#ddd",
-        boxWidth: 12,
-        font: { size: 10 }
-      },
-      align: "end"
-    }
-  },
-  scales: {
-    x: { ticks: { color: "#aaa" }, grid: { color: "#333" } },
-    y: { ticks: { color: "#aaa" }, grid: { color: "#333" } }
-  },
-  elements: { line: { tension: 0.3, borderWidth: 2 } }
-};
-
-// ===== Tab Switch =====
-document.querySelectorAll(".tabs .tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    const parent = tab.closest(".card");
-    parent.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    tab.classList.add("active");
-    parent.querySelectorAll("canvas").forEach(c => c.style.display = "none");
-    parent.querySelector("#" + tab.dataset.target).style.display = "block";
-  });
-});
-
-// ===== Helper to build charts =====
-function buildCharts(prefix) {
-  // EMA
-  new Chart(document.getElementById(`${prefix}-ema`), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [
-        { label: "Price", data: prices, borderColor: "white", fill: false },
-        { label: "EMA 9", data: ema9, borderColor: "yellow", fill: false },
-        { label: "EMA 21", data: ema21, borderColor: "cyan", fill: false },
-        { label: "EMA 50", data: ema50, borderColor: "orange", fill: false }
-      ]
-    },
-    options: darkOptions
-  });
-
-  // MACD
-  new Chart(document.getElementById(`${prefix}-macd`), {
-    data: {
-      labels,
-      datasets: [
-        { type: "line", label: "MACD", data: macd, borderColor: "purple", fill: false },
-        { type: "line", label: "Signal", data: signal, borderColor: "orange", fill: false },
-        { type: "bar", label: "Histogram", data: macd.map((v,i)=>v-signal[i]), backgroundColor: ctx => ctx.raw>0?"rgba(0,255,0,0.5)":"rgba(255,0,0,0.5)" }
-      ]
-    },
-    options: { ...darkOptions }
-  });
-
-  // RSI
-  new Chart(document.getElementById(`${prefix}-rsi`), {
-    type: "line",
-    data: { labels, datasets: [{ label: "RSI", data: rsi, borderColor: "lime", fill: false }] },
-    options: {
-      ...darkOptions,
-      plugins: {
-        annotation: {
-          annotations: {
-            line30: { type: "line", yMin: 30, yMax: 30, borderColor: "red", borderWidth: 1 },
-            line70: { type: "line", yMin: 70, yMax: 70, borderColor: "red", borderWidth: 1 }
-          }
-        }
+  <script>
+    // ==== Utils ====
+    function calcEMA(data, period) {
+      let k = 2 / (period + 1);
+      let emaArray = [];
+      let ema = data[0];
+      emaArray.push(ema);
+      for (let i = 1; i < data.length; i++) {
+        ema = data[i] * k + ema * (1 - k);
+        emaArray.push(ema);
       }
+      return emaArray;
     }
-  });
+    function calcMACD(data, short = 12, long = 26, signal = 9) {
+      let emaShort = calcEMA(data, short);
+      let emaLong = calcEMA(data, long);
+      let macd = emaShort.map((v, i) => v - emaLong[i]);
+      let signalLine = calcEMA(macd, signal);
+      let hist = macd.map((v, i) => v - signalLine[i]);
+      return { macd, signal: signalLine, hist };
+    }
+    function calcRSI(data, period = 14) {
+      let gains = [], losses = [];
+      for (let i = 1; i < data.length; i++) {
+        let diff = data[i] - data[i - 1];
+        gains.push(diff > 0 ? diff : 0);
+        losses.push(diff < 0 ? -diff : 0);
+      }
+      let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
+      let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
+      let rsi = Array(period).fill(50);
+      for (let i = period; i < gains.length; i++) {
+        avgGain = (avgGain * (period - 1) + gains[i]) / period;
+        avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
+        let rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+        rsi.push(100 - (100 / (1 + rs)));
+      }
+      return rsi;
+    }
+    function calcBollinger(data, period = 20, mult = 2) {
+      let middle = calcEMA(data, period);
+      let upper = [], lower = [];
+      for (let i = 0; i < data.length; i++) {
+        let slice = data.slice(Math.max(0, i - period + 1), i + 1);
+        let mean = slice.reduce((a, b) => a + b, 0) / slice.length;
+        let std = Math.sqrt(slice.map(x => (x - mean) ** 2).reduce((a, b) => a + b, 0) / slice.length);
+        upper.push(mean + mult * std);
+        lower.push(mean - mult * std);
+      }
+      return { upper, middle, lower };
+    }
 
-  // Bollinger
-  new Chart(document.getElementById(`${prefix}-bollinger`), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [
-        { label: "Price", data: prices, borderColor: "white", fill: false },
-        { label: "Upper", data: bollUpper, borderColor: "red", fill: false },
-        { label: "Middle", data: bollMiddle, borderColor: "yellow", fill: false },
-        { label: "Lower", data: bollLower, borderColor: "red", fill: false }
-      ]
-    },
-    options: darkOptions
-  });
-}
+    // ==== Fetch data ====
+    async function fetchData() {
+      let res = await fetch(url);
+      let text = await res.text();
+      let json = JSON.parse(text.substr(47).slice(0, -2));
+      let rows = json.table.rows.map(r => r.c.map(c => c ? c.v : null));
+      let labels = rows.map(r => r[0]);
+      let buy = rows.map(r => parseFloat(r[1]));
+      let sell = rows.map(r => parseFloat(r[2]));
+      return { labels, buy, sell };
+    }
 
-// Build cho cả Buy và Sell
-buildCharts("buy");
-buildCharts("sell");
-</script>
+    function makeChart(ctx, labels, datasets, options = {}) {
+      return new Chart(ctx, {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: "#cbd5e1" } }
+          },
+          scales: {
+            x: { ticks: { color: "#94a3b8" }, grid: { color: "#334155" } },
+            y: { ticks: { color: "#94a3b8" }, grid: { color: "#334155" } }
+          },
+          ...options
+        }
+      });
+    }
+
+    (async () => {
+      let { labels, buy, sell } = await fetchData();
+
+      // === BUY ===
+      let ema9 = calcEMA(buy, 9), ema21 = calcEMA(buy, 21), ema50 = calcEMA(buy, 50);
+      let macdObj = calcMACD(buy);
+      let rsi = calcRSI(buy);
+      let boll = calcBollinger(buy);
+
+      makeChart(document.querySelector("#buy-ema canvas"), labels, [
+        { label: "Price", data: buy, borderColor: "white", fill: false },
+        { label: "EMA9", data: ema9, borderColor: "red" },
+        { label: "EMA21", data: ema21, borderColor: "blue" },
+        { label: "EMA50", data: ema50, borderColor: "green" }
+      ]);
+
+      makeChart(document.querySelector("#buy-macd canvas"), labels, [
+        { label: "MACD", data: macdObj.macd, borderColor: "purple" },
+        { label: "Signal", data: macdObj.signal, borderColor: "orange" },
+        { label: "Histogram", data: macdObj.hist, type: "bar", backgroundColor: macdObj.hist.map(v => v >= 0 ? "#22c55e" : "#ef4444") }
+      ]);
+
+      makeChart(document.querySelector("#buy-rsi canvas"), labels, [
+        { label: "RSI", data: rsi, borderColor: "yellow" }
+      ], {
+        plugins: { annotation: { annotations: {} } },
+        scales: { y: { min: 0, max: 100, grid: { color: "#334155" }, ticks: { color: "#94a3b8" } } }
+      });
+
+      makeChart(document.querySelector("#buy-boll canvas"), labels, [
+        { label: "Price", data: buy, borderColor: "white" },
+        { label: "Upper Band", data: boll.upper, borderColor: "orange" },
+        { label: "Middle Band", data: boll.middle, borderColor: "blue" },
+        { label: "Lower Band", data: boll.lower, borderColor: "orange" }
+      ]);
+
+      // === SELL ===
+      ema9 = calcEMA(sell, 9); ema21 = calcEMA(sell, 21); ema50 = calcEMA(sell, 50);
+      macdObj = calcMACD(sell);
+      rsi = calcRSI(sell);
+      boll = calcBollinger(sell);
+
+      makeChart(document.querySelector("#sell-ema canvas"), labels, [
+        { label: "Price", data: sell, borderColor: "white", fill: false },
+        { label: "EMA9", data: ema9, borderColor: "red" },
+        { label: "EMA21", data: ema21, borderColor: "blue" },
+        { label: "EMA50", data: ema50, borderColor: "green" }
+      ]);
+
+      makeChart(document.querySelector("#sell-macd canvas"), labels, [
+        { label: "MACD", data: macdObj.macd, borderColor: "purple" },
+        { label: "Signal", data: macdObj.signal, borderColor: "orange" },
+        { label: "Histogram", data: macdObj.hist, type: "bar", backgroundColor: macdObj.hist.map(v => v >= 0 ? "#22c55e" : "#ef4444") }
+      ]);
+
+      makeChart(document.querySelector("#sell-rsi canvas"), labels, [
+        { label: "RSI", data: rsi, borderColor: "yellow" }
+      ], {
+        scales: { y: { min: 0, max: 100, grid: { color: "#334155" }, ticks: { color: "#94a3b8" } } }
+      });
+
+      makeChart(document.querySelector("#sell-boll canvas"), labels, [
+        { label: "Price", data: sell, borderColor: "white" },
+        { label: "Upper Band", data: boll.upper, borderColor: "orange" },
+        { label: "Middle Band", data: boll.middle, borderColor: "blue" },
+        { label: "Lower Band", data: boll.lower, borderColor: "orange" }
+      ]);
+
+    })();
+
+    // === Tabs ===
+    document.querySelectorAll(".tabs").forEach(tabGroup => {
+      tabGroup.querySelectorAll(".tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+          tabGroup.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+          tabGroup.querySelectorAll(".chart-container").forEach(c => c.classList.remove("active"));
+          tab.classList.add("active");
+          document.getElementById(tab.dataset.target).classList.add("active");
+        });
+      });
+    });
+  </script>
 </body>
+
 </html>

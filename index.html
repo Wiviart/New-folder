@@ -192,8 +192,8 @@
         data: {
           labels,
           datasets: [
-            { type: "line", label: "MACD", data: macd, borderColor: "blue", borderWidth: 2, fill: false, yAxisID: "y",pointRadius: 0 },
-            { type: "line", label: "Signal", data: signal, borderColor: "orange", borderWidth: 2, fill: false, yAxisID: "y",pointRadius: 0 },
+            { type: "line", label: "MACD", data: macd, borderColor: "blue", borderWidth: 2, fill: false, yAxisID: "y", pointRadius: 0 },
+            { type: "line", label: "Signal", data: signal, borderColor: "orange", borderWidth: 2, fill: false, yAxisID: "y", pointRadius: 0 },
             {
               type: "bar", label: "Histogram", data: macd.map((v, i) => v - signal[i]),
               backgroundColor: function (ctx) {
@@ -270,7 +270,7 @@
           datasets: [
             { label: "Price", data: prices, borderColor: "white", fill: false, pointRadius: 0 },
             { label: "SMA 20", data: sma20, borderColor: "blue", fill: true, backgroundColor: "rgba(255,0,0,0.1)", pointRadius: 0 },
-            { label: "Upper Band", data: upper, borderColor: "green", borderDash: [5, 5], fill: true, backgroundColor: "rgba(0,255,0,0.1)",pointRadius: 0 },
+            { label: "Upper Band", data: upper, borderColor: "green", borderDash: [5, 5], fill: true, backgroundColor: "rgba(0,255,0,0.1)", pointRadius: 0 },
             { label: "Lower Band", data: lower, borderColor: "red", borderDash: [5, 5], fill: false, pointRadius: 0 }
           ]
         }
@@ -286,14 +286,14 @@
         skipEmptyLines: true,
         complete: (results) => {
           const labels = [];
-          const buy = [];
+          // const buy = [];
           const sell = [];
           results.data.forEach(row => {
             labels.push(row["Date"]);
-            buy.push(parseFloat(row["Buy"]));
+            // buy.push(parseFloat(row["Buy"]));
             sell.push(parseFloat(row["Sell"]));
           });
-          createCharts("charts", "Buy", labels, buy);
+          // createCharts("charts", "Buy", labels, buy);
           createCharts("charts", "Sell", labels, sell);
         }
       });

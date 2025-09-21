@@ -1,53 +1,64 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 
 <head>
   <meta charset="UTF-8">
-  <title>Gold Price Buy & Sell with RSI, MACD, Bollinger</title>
+  <title>VN Gold Chart with Indicators</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 20px;
-      background: #f5f5f5;
-    }
-
-    h2,
-    h3 {
-      text-align: center;
+      margin: 0;
+      padding: 10px;
+      background: #f4f4f4;
     }
 
     .chart-container {
-      width: 95%;
-      max-width: 1400px;
-      margin: 20px auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
     }
 
-    canvas {
-      width: 100% !important;
-      height: 450px !important;
+    @media (min-width: 900px) {
+      .chart-container {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .chart-box {
+      background: #fff;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
   </style>
 </head>
 
 <body>
-  <h2>Gold Price Analysis (Buy & Sell)</h2>
-
-  <h3>Buy Price</h3>
-  <div class="chart-container"><canvas id="buyPriceChart"></canvas></div>
-  <div class="chart-container"><canvas id="buyIndicatorChart"></canvas></div>
-
-  <h3>Sell Price</h3>
-  <div class="chart-container"><canvas id="sellPriceChart"></canvas></div>
-  <div class="chart-container"><canvas id="sellIndicatorChart"></canvas></div>
+  <h2>VN Gold Chart with Indicators</h2>
+  <div class="chart-container">
+    <div class="chart-box"><canvas id="emaChart"></canvas></div>
+    <div class="chart-box"><canvas id="macdChart"></canvas></div>
+    <div class="chart-box"><canvas id="rsiChart"></canvas></div>
+    <div class="chart-box"><canvas id="volumeChart"></canvas></div>
+  </div>
 
   <script>
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTQ1yBIEkZ8mzenOYDP5PyiKiF4T8Z0kLrNKi7Bazto_iGEAlJNScc6WU_Yzv8EGG8F8zBvgNu-659/pub?gid=0&single=true&output=csv";
+
+    // Hàm tính EMA
+    function calcEMA(prices, period) {
+      let k = 2 / (period + 1);
+      let emaArray = [];
+      let ema = prices[0];
+      emaArray.push(ema);
+      for (let i = 1; i < prices.length; i++) {
+        ema = prices[i] * k + ema * (1 - k);
+        emaArray.push(ema);
+      }
+      return emaArray;
+    }
 
     async function fetchSheetData() {
       const response = await fetch(url);
@@ -61,150 +72,78 @@
             const labels = [];
             const buy = [];
             const sell = [];
+            const volumes = [];
+
             results.data.forEach(row => {
               labels.push(row["Date"]);
               buy.push(parseFloat(row["Buy"].replace(/,/g, "")));
               sell.push(parseFloat(row["Sell"].replace(/,/g, "")));
+              volumes.push(parseFloat(row["Volume"] || 0)); // nếu có cột Volume
             });
-            resolve({ labels, buy, sell });
+
+            resolve({ labels, buy, sell, volumes });
           }
         });
       });
     }
 
-    // --- Indicator Functions ---
-    function calcSMA(values, period) {
-      return values.map((v, i, arr) => {
-        if (i < period - 1) return null;
-        const slice = arr.slice(i - period + 1, i + 1);
-        return slice.reduce((a, b) => a + b, 0) / period;
-      });
-    }
+    // Khởi tạo chart sau khi có dữ liệu
+    fetchSheetData().then(({ labels, buy, sell, volumes }) => {
+      const prices = buy; // hoặc sell, tùy bạn muốn phân tích theo giá nào
 
-    function calcBollinger(values, period = 20, mult = 2) {
-      const sma = calcSMA(values, period);
-      const upper = [];
-      const lower = [];
-      sma.forEach((m, i) => {
-        if (m === null) {
-          upper.push(null); lower.push(null);
-        } else {
-          const slice = values.slice(i - period + 1, i + 1);
-          const mean = m;
-          const variance = slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / period;
-          const sd = Math.sqrt(variance);
-          upper.push(mean + mult * sd);
-          lower.push(mean - mult * sd);
-        }
-      });
-      return { sma, upper, lower };
-    }
+      // EMA
+      const ema9 = calcEMA(prices, 9);
+      const ema21 = calcEMA(prices, 21);
+      const ema50 = calcEMA(prices, 50);
 
-    function calcRSI(values, period = 14) {
-      let gains = 0, losses = 0;
-      const rsi = [];
-      for (let i = 1; i < values.length; i++) {
-        const diff = values[i] - values[i - 1];
-        if (i <= period) {
-          if (diff > 0) gains += diff;
-          else losses -= diff;
-          rsi.push(null);
-        } else {
-          const avgGain = gains / period;
-          const avgLoss = losses / period;
-          const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-          rsi.push(100 - (100 / (1 + rs)));
-
-          if (diff > 0) {
-            gains = (gains * (period - 1) + diff) / period;
-            losses = (losses * (period - 1)) / period;
-          } else {
-            gains = (gains * (period - 1)) / period;
-            losses = (losses * (period - 1) - diff) / period;
-          }
-        }
-      }
-      rsi.unshift(null);
-      return rsi;
-    }
-
-    function calcEMA(values, period) {
-      const k = 2 / (period + 1);
-      let emaPrev = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
-      const ema = values.map((v, i) => {
-        if (i < period) return null;
-        emaPrev = v * k + emaPrev * (1 - k);
-        return emaPrev;
-      });
-      return ema;
-    }
-
-    function calcMACD(values, shortPeriod = 12, longPeriod = 26, signalPeriod = 9) {
-      const emaShort = calcEMA(values, shortPeriod);
-      const emaLong = calcEMA(values, longPeriod);
-      const macd = values.map((v, i) => {
-        if (emaShort[i] === null || emaLong[i] === null) return null;
-        return emaShort[i] - emaLong[i];
-      });
-      const validMacd = macd.map(v => v ?? 0);
-      const signal = calcEMA(validMacd, signalPeriod);
-      const histogram = macd.map((v, i) => {
-        if (v === null || signal[i] === null) return null;
-        return v - signal[i];
-      });
-      return { macd, signal, histogram };
-    }
-
-    function renderChartsFor(values, labels, priceId, indicatorId, labelName) {
-      const boll = calcBollinger(values);
-      const rsi = calcRSI(values);
-      const { macd, signal, histogram } = calcMACD(values);
-
-      // Price chart
-      new Chart(document.getElementById(priceId), {
-        type: 'line',
+      new Chart(document.getElementById("emaChart"), {
+        type: "line",
         data: {
           labels,
           datasets: [
-            { label: `${labelName} Price`, data: values, borderColor: "blue", pointRadius: 0 },
-            { label: "Bollinger SMA", data: boll.sma, borderColor: "orange", borderDash: [5, 5], pointRadius: 0 },
-            { label: "Upper Band", data: boll.upper, borderColor: "green", borderDash: [3, 3], pointRadius: 0 },
-            { label: "Lower Band", data: boll.lower, borderColor: "red", borderDash: [3, 3], pointRadius: 0 }
+            { label: "Price", data: prices, borderColor: "black", fill: false },
+            { label: "EMA 9", data: ema9, borderColor: "red", fill: false },
+            { label: "EMA 21", data: ema21, borderColor: "blue", fill: false },
+            { label: "EMA 50", data: ema50, borderColor: "green", fill: false }
           ]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
       });
 
-      // Indicator chart
-      new Chart(document.getElementById(indicatorId), {
+      // MACD (demo)
+      new Chart(document.getElementById("macdChart"), {
+        type: "line",
         data: {
           labels,
           datasets: [
-            { type: "line", label: "RSI", data: rsi, borderColor: "purple", pointRadius: 0, yAxisID: "y1" },
-            { type: "line", label: "MACD", data: macd, borderColor: "brown", pointRadius: 0, yAxisID: "y2" },
-            { type: "line", label: "Signal", data: signal, borderColor: "black", pointRadius: 0, yAxisID: "y2" },
-            { type: "bar", label: "Histogram", data: histogram, backgroundColor: histogram.map(v => v > 0 ? "green" : "red"), yAxisID: "y2" }
+            { label: "MACD", data: [0.1, 0.2, 0.15, 0.25, 0.3, 0.2, 0.35, 0.4], borderColor: "purple", fill: false },
+            { label: "Signal", data: [0.05, 0.1, 0.12, 0.15, 0.2, 0.18, 0.25, 0.3], borderColor: "orange", fill: false }
           ]
+        },
+        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+      });
+
+      // RSI (demo)
+      new Chart(document.getElementById("rsiChart"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{ label: "RSI", data: [40, 45, 50, 55, 60, 65, 70, 68], borderColor: "teal", fill: false }]
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y1: { position: "left", min: 0, max: 100, title: { display: true, text: "RSI" } },
-            y2: { position: "right", title: { display: true, text: "MACD" } }
-          }
+          plugins: { legend: { position: "bottom" } },
+          scales: { y: { min: 0, max: 100 } }
         }
       });
-    }
 
-    async function renderAllCharts() {
-      const { labels, buy, sell } = await fetchSheetData();
-
-      renderChartsFor(buy, labels, "buyPriceChart", "buyIndicatorChart", "Buy");
-      renderChartsFor(sell, labels, "sellPriceChart", "sellIndicatorChart", "Sell");
-    }
-
-    renderAllCharts();
+      // Volume
+      new Chart(document.getElementById("volumeChart"), {
+        type: "bar",
+        data: { labels, datasets: [{ label: "Volume", data: volumes, backgroundColor: "gray" }] },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+    });
   </script>
 </body>
 

@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>VN Gold Chart</title>
+  <title>Gold Price Buy & Sell with RSI, MACD, Bollinger</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
   <style>
@@ -13,32 +13,43 @@
       background: #f5f5f5;
     }
 
+    h2,
+    h3 {
+      text-align: center;
+    }
+
     .chart-container {
-      width: 90%;
-      max-width: 1200px;
-      margin: auto;
+      width: 95%;
+      max-width: 1400px;
+      margin: 20px auto;
       background: white;
       padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
     }
 
     canvas {
       width: 100% !important;
-      height: 600px !important;
+      height: 450px !important;
     }
   </style>
 </head>
 
 <body>
-  <h2 style="text-align:center;">VN Gold Chart</h2>
-  <div class="chart-container">
-    <canvas id="chart"></canvas>
-  </div>
+  <h2>Gold Price Analysis (Buy & Sell)</h2>
+
+  <h3>Buy Price</h3>
+  <div class="chart-container"><canvas id="buyPriceChart"></canvas></div>
+  <div class="chart-container"><canvas id="buyIndicatorChart"></canvas></div>
+
+  <h3>Sell Price</h3>
+  <div class="chart-container"><canvas id="sellPriceChart"></canvas></div>
+  <div class="chart-container"><canvas id="sellIndicatorChart"></canvas></div>
 
   <script>
+    const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTQ1yBIEkZ8mzenOYDP5PyiKiF4T8Z0kLrNKi7Bazto_iGEAlJNScc6WU_Yzv8EGG8F8zBvgNu-659/pub?gid=0&single=true&output=csv";
+
     async function fetchSheetData() {
-      const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTQ1yBIEkZ8mzenOYDP5PyiKiF4T8Z0kLrNKi7Bazto_iGEAlJNScc6WU_Yzv8EGG8F8zBvgNu-659/pub?gid=0&single=true&output=csv";
       const response = await fetch(url);
       const text = await response.text();
 
@@ -49,47 +60,151 @@
           complete: (results) => {
             const labels = [];
             const buy = [];
+            const sell = [];
             results.data.forEach(row => {
               labels.push(row["Date"]);
               buy.push(parseFloat(row["Buy"].replace(/,/g, "")));
+              sell.push(parseFloat(row["Sell"].replace(/,/g, "")));
             });
-            resolve({ labels, buy });
+            resolve({ labels, buy, sell });
           }
         });
       });
     }
 
-    async function renderChart() {
-      const { labels, buy } = await fetchSheetData();
-      const ctx = document.getElementById('chart').getContext('2d');
+    // --- Indicator Functions ---
+    function calcSMA(values, period) {
+      return values.map((v, i, arr) => {
+        if (i < period - 1) return null;
+        const slice = arr.slice(i - period + 1, i + 1);
+        return slice.reduce((a, b) => a + b, 0) / period;
+      });
+    }
 
-      new Chart(ctx, {
+    function calcBollinger(values, period = 20, mult = 2) {
+      const sma = calcSMA(values, period);
+      const upper = [];
+      const lower = [];
+      sma.forEach((m, i) => {
+        if (m === null) {
+          upper.push(null); lower.push(null);
+        } else {
+          const slice = values.slice(i - period + 1, i + 1);
+          const mean = m;
+          const variance = slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / period;
+          const sd = Math.sqrt(variance);
+          upper.push(mean + mult * sd);
+          lower.push(mean - mult * sd);
+        }
+      });
+      return { sma, upper, lower };
+    }
+
+    function calcRSI(values, period = 14) {
+      let gains = 0, losses = 0;
+      const rsi = [];
+      for (let i = 1; i < values.length; i++) {
+        const diff = values[i] - values[i - 1];
+        if (i <= period) {
+          if (diff > 0) gains += diff;
+          else losses -= diff;
+          rsi.push(null);
+        } else {
+          const avgGain = gains / period;
+          const avgLoss = losses / period;
+          const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+          rsi.push(100 - (100 / (1 + rs)));
+
+          if (diff > 0) {
+            gains = (gains * (period - 1) + diff) / period;
+            losses = (losses * (period - 1)) / period;
+          } else {
+            gains = (gains * (period - 1)) / period;
+            losses = (losses * (period - 1) - diff) / period;
+          }
+        }
+      }
+      rsi.unshift(null);
+      return rsi;
+    }
+
+    function calcEMA(values, period) {
+      const k = 2 / (period + 1);
+      let emaPrev = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
+      const ema = values.map((v, i) => {
+        if (i < period) return null;
+        emaPrev = v * k + emaPrev * (1 - k);
+        return emaPrev;
+      });
+      return ema;
+    }
+
+    function calcMACD(values, shortPeriod = 12, longPeriod = 26, signalPeriod = 9) {
+      const emaShort = calcEMA(values, shortPeriod);
+      const emaLong = calcEMA(values, longPeriod);
+      const macd = values.map((v, i) => {
+        if (emaShort[i] === null || emaLong[i] === null) return null;
+        return emaShort[i] - emaLong[i];
+      });
+      const validMacd = macd.map(v => v ?? 0);
+      const signal = calcEMA(validMacd, signalPeriod);
+      const histogram = macd.map((v, i) => {
+        if (v === null || signal[i] === null) return null;
+        return v - signal[i];
+      });
+      return { macd, signal, histogram };
+    }
+
+    function renderChartsFor(values, labels, priceId, indicatorId, labelName) {
+      const boll = calcBollinger(values);
+      const rsi = calcRSI(values);
+      const { macd, signal, histogram } = calcMACD(values);
+
+      // Price chart
+      new Chart(document.getElementById(priceId), {
         type: 'line',
         data: {
           labels,
-          datasets: [{
-            label: 'Buy Price',
-            data: buy,
-            borderColor: 'blue',
-            borderWidth: 2,
-            pointRadius: 0
-          }]
+          datasets: [
+            { label: `${labelName} Price`, data: values, borderColor: "blue", pointRadius: 0 },
+            { label: "Bollinger SMA", data: boll.sma, borderColor: "orange", borderDash: [5, 5], pointRadius: 0 },
+            { label: "Upper Band", data: boll.upper, borderColor: "green", borderDash: [3, 3], pointRadius: 0 },
+            { label: "Lower Band", data: boll.lower, borderColor: "red", borderDash: [3, 3], pointRadius: 0 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // Indicator chart
+      new Chart(document.getElementById(indicatorId), {
+        data: {
+          labels,
+          datasets: [
+            { type: "line", label: "RSI", data: rsi, borderColor: "purple", pointRadius: 0, yAxisID: "y1" },
+            { type: "line", label: "MACD", data: macd, borderColor: "brown", pointRadius: 0, yAxisID: "y2" },
+            { type: "line", label: "Signal", data: signal, borderColor: "black", pointRadius: 0, yAxisID: "y2" },
+            { type: "bar", label: "Histogram", data: histogram, backgroundColor: histogram.map(v => v > 0 ? "green" : "red"), yAxisID: "y2" }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'top' },
-            title: { display: true, text: 'Buy Price (Sheet Data)' }
-          },
           scales: {
-            x: { ticks: { maxRotation: 45, minRotation: 45 } }
+            y1: { position: "left", min: 0, max: 100, title: { display: true, text: "RSI" } },
+            y2: { position: "right", title: { display: true, text: "MACD" } }
           }
         }
       });
     }
 
-    renderChart();
+    async function renderAllCharts() {
+      const { labels, buy, sell } = await fetchSheetData();
+
+      renderChartsFor(buy, labels, "buyPriceChart", "buyIndicatorChart", "Buy");
+      renderChartsFor(sell, labels, "sellPriceChart", "sellIndicatorChart", "Sell");
+    }
+
+    renderAllCharts();
   </script>
 </body>
 

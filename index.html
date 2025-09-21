@@ -282,20 +282,29 @@
       });
     }
 
-    // ===== Load data from Google Sheet =====
-    Papa.parse(url, {
-      download: true,
-      header: true,
-      complete: function (results) {
-        const data = results.data;
-        const labels = data.map(row => row.Date || row.date);
-        const buyPrices = data.map(row => parseFloat(row.Buy || row.buy));
-        const sellPrices = data.map(row => parseFloat(row.Sell || row.sell));
+    // ==== Main ====
+    async function main() {
+      const response = await fetch(url);
+      const text = await response.text();
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const labels = [];
+          const buy = [];
+          const sell = [];
+          results.data.forEach(row => {
+            labels.push(row["Date"]);
+            buy.push(parseFloat(row["Buy"]));
+            sell.push(parseFloat(row["Sell"]));
+          });
+          createCharts("charts", "Buy", labels, buy);
+          createCharts("charts", "Sell", labels, sell);
+        }
+      });
+    }
 
-        buildCharts("buy", labels, buyPrices);
-        buildCharts("sell", labels, sellPrices);
-      }
-    });
+    main();
   </script>
 </body>
 

@@ -1,417 +1,180 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
-  <meta charset="UTF-8" />
-  <title>VN Gold Charts with Indicators</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
-  <!-- url.js phải định nghĩa `const url = "...csv pub link..."` -->
-  <script src="url.js"></script>
-
+  <meta charset="UTF-8">
+  <title>Stock Indicators</title>
   <style>
-    :root {
-      --bg: #131722;
-      --card: #16171b;
-      --card-2: #1a1a1f;
-      --muted: #9aa4b2;
-      --text: #d1d4dc;
-      --grid: #2a2e39;
-    }
-
-    html,
     body {
-      height: 100%
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #0e0e0e;
+      color: #d1d4dc;
     }
-
-    body {
-      margin: 0;
-      padding: 24px;
-      font-family: "Segoe UI", Roboto, Arial, sans-serif;
-      background: radial-gradient(circle at 10% 10%, #1e232b 0%, #121217 60%);
-      color: var(--text);
+    .container {
+      max-width: 1200px;
+      margin: auto;
     }
-
-    h2 {
-      text-align: center;
-      margin: 0 0 18px 0;
-      font-size: 1.6rem;
-      color: var(--text);
-      text-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+    .card {
+      background: #1e222d;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      padding: 15px;
     }
-
-    .chart-container {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 20px;
-      max-width: 1400px;
-      margin: 18px auto;
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #2a2e39;
     }
-
-    @media(min-width:900px) {
-      .chart-container {
-        grid-template-columns: 1fr 1fr
-      }
+    .tab {
+      padding: 10px 15px;
+      cursor: pointer;
+      background: #1e222d;
+      color: #868b98;
+      transition: 0.2s;
     }
-
-    .chart-box {
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.12));
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 8px 10px 30px rgba(6, 8, 12, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.02);
-      transition: transform .18s ease, box-shadow .18s ease;
-      min-height: 420px;
+    .tab.active {
+      border-bottom: 2px solid #2962ff;
+      color: #d1d4dc;
     }
-
-    .chart-box:hover {
-      transform: translateY(-6px);
+    .tab:hover {
+      color: #fff;
     }
-
-    .chart-box h3 {
-      margin: 0 0 8px 0;
-      font-size: 1.1rem;
-      text-align: center;
-      color: var(--text);
-      letter-spacing: .6px;
+    .tab-content {
+      display: none;
+      padding-top: 15px;
     }
-
-    /* canvas sizing */
-    .chart-box canvas {
+    .tab-content.active {
       display: block;
-      width: 100% !important;
-      height: 240px !important;
-      margin-bottom: 14px;
-      border-radius: 8px;
-      background: transparent;
     }
-
-    /* legend tweaks */
-    .legend-note {
-      text-align: center;
-      color: var(--muted);
-      font-size: 0.85rem;
-      margin-top: 6px
+    canvas {
+      width: 100% !important;
+      height: 400px !important;
     }
   </style>
 </head>
-
 <body>
-  <h2>VN Gold Charts with Indicators</h2>
+  <div class="container">
+    <div class="card">
+      <div class="tabs">
+        <div class="tab active" data-target="ema">EMA</div>
+        <div class="tab" data-target="macd">MACD</div>
+        <div class="tab" data-target="rsi">RSI</div>
+        <div class="tab" data-target="bollinger">Bollinger</div>
+      </div>
+      <div id="ema" class="tab-content active">
+        <canvas id="emaChart"></canvas>
+      </div>
+      <div id="macd" class="tab-content">
+        <canvas id="macdChart"></canvas>
+      </div>
+      <div id="rsi" class="tab-content">
+        <canvas id="rsiChart"></canvas>
+      </div>
+      <div id="bollinger" class="tab-content">
+        <canvas id="bollingerChart"></canvas>
+      </div>
+    </div>
+  </div>
 
-  <div class="chart-container" id="charts"></div>
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    // ---------- Helpers ----------
-    function safeParseNum(s) {
-      if (s === undefined || s === null) return null;
-      // remove commas and spaces
-      const v = String(s).replace(/[, ]+/g, '');
-      const n = parseFloat(v);
-      return Number.isFinite(n) ? n : null;
-    }
+    // Tabs logic
+    const tabs = document.querySelectorAll('.tab');
+    const contents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        contents.forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.target).classList.add('active');
+      });
+    });
 
-    function calcEMA(prices, period) {
-      const k = 2 / (period + 1);
-      const ema = [];
-      let prev = null;
-      // find first valid initial average (simple average over first `period` valid entries)
-      let firstIdx = 0;
-      while (firstIdx < prices.length && prices[firstIdx] == null) firstIdx++;
-      const start = Math.max(firstIdx, period - 1);
-      // compute initial SMA for the first valid block if possible
-      for (let i = 0; i < prices.length; i++) {
-        if (i < period - 1 || prices[i] == null) {
-          ema.push(null);
-          continue;
-        }
-        if (prev === null) {
-          // initial SMA
-          let sum = 0, cnt = 0;
-          for (let j = i - period + 1; j <= i; j++) { sum += prices[j]; cnt++; }
-          prev = sum / cnt;
-          ema[i] = prev;
-        } else {
-          prev = prices[i] * k + prev * (1 - k);
-          ema[i] = prev;
-        }
-      }
-      return ema;
-    }
-
-    function calcSMA(prices, period) {
-      const sma = [];
-      for (let i = 0; i < prices.length; i++) {
-        if (i < period - 1 || prices[i] == null) { sma.push(null); continue; }
-        let sum = 0;
-        for (let j = i - period + 1; j <= i; j++) sum += prices[j];
-        sma.push(sum / period);
-      }
-      return sma;
-    }
-
-    function calcStdDev(prices, period) {
-      const std = [];
-      for (let i = 0; i < prices.length; i++) {
-        if (i < period - 1 || prices[i] == null) { std.push(null); continue; }
-        const slice = prices.slice(i - period + 1, i + 1);
-        const mean = slice.reduce((a, b) => a + (b || 0), 0) / period;
-        const variance = slice.reduce((a, b) => a + Math.pow((b || 0) - mean, 2), 0) / period;
-        std.push(Math.sqrt(variance));
-      }
-      return std;
-    }
-
-    function calcRSI(prices, period = 14) {
-      const rsi = new Array(prices.length).fill(null);
-      let gains = 0, losses = 0;
-      // find first run of `period` valid differences
-      let validCount = 0;
-      for (let i = 1; i < prices.length && validCount < period; i++) {
-        if (prices[i] == null || prices[i - 1] == null) continue;
-        const d = prices[i] - prices[i - 1];
-        if (d >= 0) gains += d; else losses -= d;
-        validCount++;
-      }
-      if (validCount < period) return rsi;
-      let avgGain = gains / period, avgLoss = losses / period;
-      let firstIndex = 1;
-      // move to the index where RSI becomes first defined
-      let cnt = 0;
-      for (let i = 1; i < prices.length; i++) {
-        if (prices[i] == null || prices[i - 1] == null) continue;
-        cnt++; if (cnt === period) { firstIndex = i; break; }
-      }
-      if (firstIndex >= prices.length) return rsi;
-      rsi[firstIndex] = 100 - (100 / (1 + avgGain / (avgLoss || 1e-9)));
-      for (let i = firstIndex + 1; i < prices.length; i++) {
-        if (prices[i] == null || prices[i - 1] == null) { rsi[i] = null; continue; }
-        const change = prices[i] - prices[i - 1];
-        const gain = Math.max(change, 0), loss = Math.max(-change, 0);
-        avgGain = (avgGain * (period - 1) + gain) / period;
-        avgLoss = (avgLoss * (period - 1) + loss) / period;
-        rsi[i] = 100 - (100 / (1 + avgGain / (avgLoss || 1e-9)));
-      }
-      return rsi;
-    }
-
-    function calcMACD(prices) {
-      const ema12 = calcEMA(prices, 12);
-      const ema26 = calcEMA(prices, 26);
-      const macd = ema12.map((v, i) => (v == null || ema26[i] == null) ? null : v - ema26[i]);
-      // compute signal on macd but keep alignment:
-      const signal = [];
-      // collect macd values for initial signal computation (skip nulls)
-      const macdVals = macd.map(v => v == null ? 0 : v); // use 0 for leading nulls so EMA works but align later
-      const rawSignal = calcEMA(macdVals, 9);
-      // Align: where macd was null, set signal to null too
-      for (let i = 0; i < macd.length; i++) signal[i] = (macd[i] == null) ? null : rawSignal[i];
-      return { macd, signal };
-    }
-
-    // ---------- Chart theme (TradingView dark) ----------
-    const theme = {
-      background: "#131722",
-      text: "#d1d4dc",
-      grid: "#2a2e39",
-      muted: "#9aa4b2",
-      price: "#ffffff",
-      ema9: "rgba(255,77,79,0.95)",     // red
-      ema21: "rgba(26,150,255,0.92)",   // blue
-      ema50: "rgba(255,193,7,0.92)",    // yellow
-      sma20: "rgba(66,165,245,0.85)",
-      bollFill: "rgba(66,165,245,0.06)",
-      macdLine: "rgba(155,120,255,0.95)",
-      macdSignal: "rgba(255,174,66,0.95)",
-      histPos: "rgba(38,166,154,0.55)",
-      histNeg: "rgba(239,83,80,0.55)",
-      rsiLine: "rgba(156,39,176,0.95)",
-      rsiZone: "rgba(255,255,255,0.04)"
-    };
-
-    const baseOptions = {
-      maintainAspectRatio: false,
-      responsive: true,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { labels: { color: theme.text } },
-        tooltip: { backgroundColor: "#0f1720", titleColor: "#fff", bodyColor: theme.text }
+    // Dummy EMA chart
+    new Chart(document.getElementById('emaChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array.from({length: 20}, (_, i) => i+1),
+        datasets: [
+          {label: 'EMA 9', data: Array.from({length:20},()=>Math.random()*100),
+           borderColor: '#2962ff', borderWidth: 1.5, fill:false},
+          {label: 'EMA 21', data: Array.from({length:20},()=>Math.random()*100),
+           borderColor: '#ff9800', borderWidth: 1.5, fill:false},
+          {label: 'EMA 50', data: Array.from({length:20},()=>Math.random()*100),
+           borderColor: '#4caf50', borderWidth: 1.5, fill:false}
+        ]
       },
-      scales: {
-        x: { ticks: { color: theme.muted }, grid: { color: theme.grid } },
-        y: { ticks: { color: theme.muted }, grid: { color: theme.grid } }
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#d1d4dc" } } },
+        scales: {
+          x: { ticks: { color: "#868b98" }, grid: { color: "#2a2e39" } },
+          y: { ticks: { color: "#868b98" }, grid: { color: "#2a2e39" } }
+        }
       }
-    };
+    });
 
-    // ---------- Create chart group ----------
-    function createCharts(containerId, title, labels, prices) {
-      // compute indicators
-      const ema9 = calcEMA(prices, 9);
-      const ema21 = calcEMA(prices, 21);
-      const ema50 = calcEMA(prices, 50);
-      const { macd, signal } = calcMACD(prices);
-      const histogram = macd.map((v, i) => (v == null || signal[i] == null) ? null : (v - signal[i]));
-      const rsi = calcRSI(prices, 14);
-      const sma20 = calcSMA(prices, 20);
-      const std20 = calcStdDev(prices, 20);
-      const upper = sma20.map((s, i) => (s == null || std20[i] == null) ? null : s + 2 * std20[i]);
-      const lower = sma20.map((s, i) => (s == null || std20[i] == null) ? null : s - 2 * std20[i]);
-
-      // container card
-      const div = document.createElement('div');
-      div.className = 'chart-box';
-      div.innerHTML = `<h3>${title}</h3>
-        <canvas id="${title}-ema"></canvas>
-        <canvas id="${title}-macd"></canvas>
-        <canvas id="${title}-rsi"></canvas>
-        <canvas id="${title}-bollinger"></canvas>
-        <div class="legend-note">Price + EMA(9/21/50) — MACD (line + histogram) — RSI (30/70) — Bollinger Bands</div>`;
-      document.getElementById(containerId).appendChild(div);
-
-      // ----- EMA chart (Price on top) -----
-      // We will draw Upper & Lower first to support fill between
-      const ctxE = document.getElementById(`${title}-ema`).getContext('2d');
-      new Chart(ctxE, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            { label: 'Upper Band', data: upper, borderColor: 'transparent', backgroundColor: 'transparent', spanGaps: true },
-            { label: 'Lower Band', data: lower, borderColor: 'transparent', backgroundColor: theme.bollFill, fill: '-1', spanGaps: true },
-            { label: 'SMA20', data: sma20, borderColor: theme.sma20, borderWidth: 1, pointRadius: 0, spanGaps: true, fill: false },
-            { label: 'Price', data: prices, borderColor: theme.price, borderWidth: 1.8, pointRadius: 0, spanGaps: true, order: 5 },
-            { label: 'EMA 9', data: ema9, borderColor: theme.ema9, borderWidth: 1.4, pointRadius: 0, spanGaps: true },
-            { label: 'EMA 21', data: ema21, borderColor: theme.ema21, borderWidth: 1.4, pointRadius: 0, spanGaps: true },
-            { label: 'EMA 50', data: ema50, borderColor: theme.ema50, borderWidth: 1.4, pointRadius: 0, spanGaps: true }
-          ]
-        },
-        options: {
-          ...baseOptions,
-          plugins: { ...baseOptions.plugins },
-          scales: {
-            x: baseOptions.scales.x,
-            y: baseOptions.scales.y
-          }
+    // Dummy MACD chart
+    new Chart(document.getElementById('macdChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array.from({length: 20}, (_, i) => i+1),
+        datasets: [
+          {label: 'MACD', data: Array.from({length:20},()=>Math.random()*2-1),
+           borderColor: '#03a9f4', fill:false},
+          {label: 'Signal', data: Array.from({length:20},()=>Math.random()*2-1),
+           borderColor: '#ff5252', fill:false}
+        ]
+      },
+      options: {
+        plugins: { legend: { labels: { color: "#d1d4dc" } } },
+        scales: {
+          x: { ticks: { color: "#868b98" }, grid: { color: "#2a2e39" } },
+          y: { ticks: { color: "#868b98" }, grid: { color: "#2a2e39" } }
         }
-      });
-
-      // ----- MACD (lines + histogram) -----
-      const ctxM = document.getElementById(`${title}-macd`).getContext('2d');
-      new Chart(ctxM, {
-        data: {
-          labels,
-          datasets: [
-            {
-              type: 'bar', label: 'Histogram', data: histogram,
-              backgroundColor: ctx => {
-                const v = ctx.raw;
-                if (v == null) return 'rgba(0,0,0,0)';
-                return v >= 0 ? theme.histPos : theme.histNeg;
-              },
-              borderRadius: 2, barPercentage: 0.9, categoryPercentage: 0.9, order: 1
-            },
-            { type: 'line', label: 'MACD', data: macd, borderColor: theme.macdLine, borderWidth: 1.6, pointRadius: 0, fill: false, order: 2 },
-            { type: 'line', label: 'Signal', data: signal, borderColor: theme.macdSignal, borderWidth: 1.6, pointRadius: 0, fill: false, borderDash: [3, 3], order: 3 }
-          ]
-        },
-        options: {
-          ...baseOptions,
-          scales: {
-            x: baseOptions.scales.x,
-            y: { ...baseOptions.scales.y, beginAtZero: false }
-          },
-          plugins: { ...baseOptions.plugins },
-        }
-      });
-
-      // ----- RSI (with zone and lines 30/70) -----
-      const ctxR = document.getElementById(`${title}-rsi`).getContext('2d');
-      new Chart(ctxR, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            { label: 'RSI', data: rsi, borderColor: theme.rsiLine, borderWidth: 1.6, pointRadius: 0, fill: false }
-          ]
-        },
-        options: {
-          ...baseOptions,
-          scales: {
-            x: baseOptions.scales.x,
-            y: { ...baseOptions.scales.y, min: 0, max: 100 }
-          },
-          plugins: {
-            ...baseOptions.plugins,
-            annotation: {
-              annotations: {
-                zone: { type: 'box', yMin: 30, yMax: 70, backgroundColor: theme.rsiZone, borderWidth: 0 },
-                line30: { type: 'line', yMin: 30, yMax: 30, borderColor: '#ff5252', borderDash: [6, 6], borderWidth: 1.2 },
-                line70: { type: 'line', yMin: 70, yMax: 70, borderColor: '#ff5252', borderDash: [6, 6], borderWidth: 1.2 }
-              }
-            }
-          }
-        }
-      });
-
-      // ----- Bollinger chart -----
-      const ctxB = document.getElementById(`${title}-bollinger`).getContext('2d');
-      new Chart(ctxB, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            { label: 'Upper', data: upper, borderColor: 'transparent', backgroundColor: 'transparent', spanGaps: true },
-            { label: 'Lower', data: lower, borderColor: 'transparent', backgroundColor: theme.bollFill, fill: '-1', spanGaps: true },
-            { label: 'Price', data: prices, borderColor: theme.price, borderWidth: 1.6, pointRadius: 0, spanGaps: true },
-            { label: 'SMA20', data: sma20, borderColor: theme.sma20, borderWidth: 1, pointRadius: 0, spanGaps: true }
-          ]
-        },
-        options: {
-          ...baseOptions,
-          scales: { x: baseOptions.scales.x, y: baseOptions.scales.y },
-          plugins: { ...baseOptions.plugins }
-        }
-      });
-
-    } // end createCharts
-
-    // ---------- Main: load CSV and draw ----------
-    async function main() {
-      if (typeof url === 'undefined') {
-        document.getElementById('charts').innerHTML = '<div style="color:#f88;padding:20px">Error: url not defined. Put CSV publish link into url.js as `const url = "...";`</div>';
-        return;
       }
-      try {
-        const res = await fetch(url);
-        const text = await res.text();
-        Papa.parse(text, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            const labels = [];
-            const buy = [];
-            const sell = [];
-            results.data.forEach(row => {
-              // guard rows
-              if (!row) return;
-              labels.push(row["Date"] || '');
-              buy.push(safeParseNum(row["Buy"]));
-              sell.push(safeParseNum(row["Sell"]));
-            });
-            // create two cards
-            createCharts('charts', 'Buy', labels, buy);
-            createCharts('charts', 'Sell', labels, sell);
-          }
-        });
-      } catch (e) {
-        console.error(e);
-        document.getElementById('charts').innerHTML = '<div style="color:#f88;padding:20px">Failed to load CSV — check url.js and CORS/publishing.</div>';
-      }
-    }
+    });
 
-    main();
+    // Dummy RSI chart
+    new Chart(document.getElementById('rsiChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array.from({length: 20}, (_, i) => i+1),
+        datasets: [
+          {label: 'RSI', data: Array.from({length:20},()=>30+Math.random()*40),
+           borderColor: '#fdd835', fill:false}
+        ]
+      },
+      options: {
+        plugins: { legend: { labels: { color: "#d1d4dc" } } },
+        scales: {
+          x: { ticks: { color: "#868b98" }, grid: { color: "#2a2e39" } },
+          y: { ticks: { color: "#868b98" }, grid: { color: "#2a2e39" } }
+        }
+      }
+    });
+
+    // Dummy Bollinger Bands chart
+    new Chart(document.getElementById('bollingerChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array.from({length: 20}, (_, i) => i+1),
+        datasets: [
+          {label: 'Price', data: Array.from({length:20},()=>100+Math.random()*20),
+           borderColor: '#2962ff', fill:false},
+          {label: 'Upper Band', data: Array.from({length:20},()=>110+Math.random()*20),
+           borderColor: '#4caf50', borderDash: [5,5], fill:false},
+          {label: 'Lower Band', data: Array.from({length:20},()=>90+Math.random()*20),
+           borderColor: '#ff5252', borderDash: [5,5], fill:false}
+        ]
+      },
+      options: {
+        plugins: { legend: { labels: { color: "#d1d4dc" } } },
+        scales: {
+          x: { ticks: { color: "#868b98" }, grid: { color: "#2a2e39" } },
+          y: { ticks: { color: "#868b98" }, grid: { color: "#2a2e39" } }
+        }
+      }
+    });
   </script>
 </body>
-
 </html>

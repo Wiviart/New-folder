@@ -6,6 +6,7 @@
   <title>Buy & Sell Charts with Indicators</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
   <script src="url.js"></script>
   <style>
     body {
@@ -41,7 +42,7 @@
 </head>
 
 <body>
-  <h2>Buy & Sell Charts with EMA, MACD, RSI, Bollinger Bands</h2>
+  <h2>VN Gold Charts with Indicators</h2>
 
   <div class="chart-container" id="charts"></div>
 
@@ -174,9 +175,53 @@
       // RSI
       new Chart(document.getElementById(`${title}-rsi`), {
         type: "line",
-        data: { labels, datasets: [{ label: "RSI", data: rsi, borderColor: "teal", fill: false }] },
-        options: { scales: { y: { min: 0, max: 100 } } }
+        data: {
+          labels,
+          datasets: [
+            { label: "RSI", data: rsi, borderColor: "teal", fill: false }
+          ]
+        },
+        options: {
+          scales: {
+            y: { min: 0, max: 100 }
+          },
+          plugins: {
+            annotation: {
+              annotations: {
+                line30: {
+                  type: "line",
+                  yMin: 30,
+                  yMax: 30,
+                  borderColor: "red",
+                  borderWidth: 2,
+                  borderDash: [6, 6],
+                  label: {
+                    content: "30%",
+                    enabled: true,
+                    position: "start",
+                    color: "red"
+                  }
+                },
+                line70: {
+                  type: "line",
+                  yMin: 70,
+                  yMax: 70,
+                  borderColor: "red",
+                  borderWidth: 2,
+                  borderDash: [6, 6],
+                  label: {
+                    content: "70%",
+                    enabled: true,
+                    position: "start",
+                    color: "red"
+                  }
+                }
+              }
+            }
+          }
+        }
       });
+
 
       // Bollinger
       new Chart(document.getElementById(`${title}-bollinger`), {

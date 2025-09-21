@@ -15,7 +15,6 @@
       padding: 20px;
       background: radial-gradient(circle at top, #373761, #121212);
       color: #e0e0e0;
-      transition: all 0.4s ease;
     }
 
     h2 {
@@ -31,12 +30,6 @@
       padding: 18px;
       border-radius: 16px;
       box-shadow: 8px 8px 16px #0e0e0e, -8px -8px 16px #2e2e2e;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .chart-box:hover {
-      transform: translateY(-5px);
-      box-shadow: 10px 10px 20px #0c0c0c, -10px -10px 20px #2a2a2a;
     }
 
     .chart-box h3 {
@@ -51,14 +44,12 @@
       background: #3c3c3c;
       border-radius: 12px;
       padding: 8px;
-      color: #ffffff;
     }
   </style>
 </head>
 
 <body>
   <h2>VN Gold Charts with Indicators</h2>
-
   <div id="charts"></div>
 
   <script>
@@ -78,9 +69,8 @@
     function calcSMA(prices, period) {
       let sma = [];
       for (let i = 0; i < prices.length; i++) {
-        if (i < period - 1) {
-          sma.push(null);
-        } else {
+        if (i < period - 1) sma.push(null);
+        else {
           let sum = 0;
           for (let j = 0; j < period; j++) sum += prices[i - j];
           sma.push(sum / period);
@@ -92,9 +82,8 @@
     function calcStdDev(prices, period) {
       let stddev = [];
       for (let i = 0; i < prices.length; i++) {
-        if (i < period - 1) {
-          stddev.push(null);
-        } else {
+        if (i < period - 1) stddev.push(null);
+        else {
           let subset = prices.slice(i - period + 1, i + 1);
           let mean = subset.reduce((a, b) => a + b, 0) / period;
           let variance = subset.reduce((a, b) => a + (b - mean) ** 2, 0) / period;
@@ -109,8 +98,7 @@
       let gains = 0, losses = 0;
       for (let i = 1; i <= period; i++) {
         let change = prices[i] - prices[i - 1];
-        if (change >= 0) gains += change;
-        else losses -= change;
+        if (change >= 0) gains += change; else losses -= change;
       }
       let avgGain = gains / period;
       let avgLoss = losses / period;
@@ -135,7 +123,6 @@
       const ema26 = calcEMA(prices, 26);
       let macd = ema12.map((v, i) => v - ema26[i]);
       let signal = calcEMA(macd.filter(v => v !== undefined), 9);
-      // align length
       while (signal.length < macd.length) signal.unshift(null);
       return { macd, signal };
     }
@@ -161,6 +148,23 @@
         <canvas id="${title}-bollinger"></canvas>`;
       document.getElementById(containerId).appendChild(chartBox);
 
+      const commonOptions = {
+        plugins: {
+          legend: {
+            labels: {
+              color: "#ffffff",   // ✅ legend chữ trắng
+              boxWidth: 20,
+              padding: 15,
+              font: { size: 13 }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: "#ccc" }, grid: { color: "rgba(128,128,128,0.3)" } },
+          y: { ticks: { color: "#ccc" }, grid: { color: "rgba(128,128,128,0.3)" } }
+        }
+      };
+
       // EMA
       new Chart(document.getElementById(`${title}-ema`), {
         type: "line",
@@ -172,7 +176,8 @@
             { label: "EMA 21", data: ema21, borderColor: "yellow", fill: false, pointRadius: 0 },
             { label: "EMA 50", data: ema50, borderColor: "green", fill: false, pointRadius: 0 }
           ]
-        }
+        },
+        options: commonOptions
       });
 
       // MACD
@@ -181,23 +186,15 @@
         data: {
           labels,
           datasets: [
-            { type: "line", label: "MACD", data: macd, borderColor: "blue", borderWidth: 2, fill: false, yAxisID: "y", pointRadius: 0 },
-            { type: "line", label: "Signal", data: signal, borderColor: "orange", borderWidth: 2, fill: false, yAxisID: "y", pointRadius: 0 },
+            { type: "line", label: "MACD", data: macd, borderColor: "blue", borderWidth: 2, fill: false, pointRadius: 0 },
+            { type: "line", label: "Signal", data: signal, borderColor: "orange", borderWidth: 2, fill: false, pointRadius: 0 },
             {
               type: "bar", label: "Histogram", data: macd.map((v, i) => v - signal[i]),
-              backgroundColor: function (ctx) {
-                let value = ctx.raw; return value >= 0 ? "rgba(0,200,0,0.6)" : "rgba(200,0,0,0.6)";
-              }, yAxisID: "y",
+              backgroundColor: ctx => ctx.raw >= 0 ? "rgba(0,200,0,0.6)" : "rgba(200,0,0,0.6)"
             }
           ]
         },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true
-            }
-          }
-        }
+        options: commonOptions
       });
 
       // RSI
@@ -210,48 +207,21 @@
           ]
         },
         options: {
-          scales: {
-            y: { min: 0, max: 100 }
-          },
+          ...commonOptions,
+          scales: { y: { min: 0, max: 100, ticks: { color: "#ccc" }, grid: { color: "rgba(128,128,128,0.3)" } } },
           plugins: {
+            ...commonOptions.plugins,
             annotation: {
               annotations: {
-                line30: {
-                  type: "line",
-                  yMin: 30,
-                  yMax: 30,
-                  borderColor: "yellow",
-                  borderWidth: 1,
-                  borderDash: [6, 6],
-                  label: {
-                    content: "30%",
-                    enabled: true,
-                    position: "start",
-                    color: "yellow"
-                  }
-                },
-                line70: {
-                  type: "line",
-                  yMin: 70,
-                  yMax: 70,
-                  borderColor: "yellow",
-                  borderWidth: 1,
-                  borderDash: [6, 6],
-                  label: {
-                    content: "70%",
-                    enabled: true,
-                    position: "start",
-                    color: "yellow"
-                  }
-                }
+                line30: { type: "line", yMin: 30, yMax: 30, borderColor: "yellow", borderDash: [6, 6] },
+                line70: { type: "line", yMin: 70, yMax: 70, borderColor: "yellow", borderDash: [6, 6] }
               }
             }
           }
         }
       });
 
-
-      // Bollinger Bands
+      // Bollinger
       new Chart(document.getElementById(`${title}-bollinger`), {
         type: "line",
         data: {
@@ -262,7 +232,8 @@
             { label: "Upper Band", data: upper, borderColor: "green", borderDash: [5, 5], fill: false, pointRadius: 0 },
             { label: "Lower Band", data: lower, borderColor: "red", borderDash: [5, 5], fill: false, pointRadius: 0 }
           ]
-        }
+        },
+        options: commonOptions
       });
     }
 

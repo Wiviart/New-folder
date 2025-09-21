@@ -162,13 +162,46 @@
 
       // MACD
       new Chart(document.getElementById(`${title}-macd`), {
-        type: "line",
+        type: "bar",
         data: {
           labels,
           datasets: [
-            { label: "MACD", data: macd, borderColor: "purple", fill: false },
-            { label: "Signal", data: signal, borderColor: "orange", fill: false }
+            {
+              type: "line",
+              label: "MACD",
+              data: macd,
+              borderColor: "purple",
+              borderWidth: 2,
+              fill: false,
+              yAxisID: "y",
+            },
+            {
+              type: "line",
+              label: "Signal",
+              data: signal,
+              borderColor: "orange",
+              borderWidth: 2,
+              fill: false,
+              yAxisID: "y",
+            },
+            {
+              type: "bar",
+              label: "Histogram",
+              data: macd.map((v, i) => v - signal[i]),
+              backgroundColor: function (ctx) {
+                let value = ctx.raw;
+                return value >= 0 ? "rgba(0,200,0,0.6)" : "rgba(200,0,0,0.6)";
+              },
+              yAxisID: "y",
+            }
           ]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
         }
       });
 

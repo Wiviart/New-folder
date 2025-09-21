@@ -2,12 +2,13 @@
 <html lang="vi">
 
 <head>
-  <meta charset="UTF-8">
-  <title>Buy & Sell Charts with Indicators</title>
+  <meta charset="UTF-8" />
+  <title>VN Gold Charts with Indicators (updated)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
   <script src="url.js"></script>
+
   <style>
     body {
       font-family: "Segoe UI", Roboto, Arial, sans-serif;
@@ -15,15 +16,13 @@
       padding: 20px;
       background: radial-gradient(circle at top, #1e1e2f, #121212);
       color: #e0e0e0;
-      transition: all 0.4s ease;
+      transition: all 0.25s ease;
     }
 
     h2 {
-      margin: 15px 0 25px 0;
       text-align: center;
-      font-size: 1.8rem;
-      color: #ffffff;
-      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+      margin: 15px 0 25px;
+      color: #fff;
     }
 
     .chart-container {
@@ -32,7 +31,7 @@
       gap: 24px;
     }
 
-    @media (min-width: 900px) {
+    @media (min-width:900px) {
       .chart-container {
         grid-template-columns: 1fr 1fr;
       }
@@ -43,125 +42,133 @@
       padding: 18px;
       border-radius: 16px;
       box-shadow: 8px 8px 16px #0e0e0e, -8px -8px 16px #2e2e2e;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .chart-box:hover {
-      transform: translateY(-5px);
-      box-shadow: 10px 10px 20px #0c0c0c, -10px -10px 20px #2a2a2a;
     }
 
     .chart-box h3 {
       margin-bottom: 10px;
       text-align: center;
       color: #f5f5f5;
-      font-size: 1.3rem;
-      letter-spacing: 1px;
+      font-size: 1.1rem;
     }
 
     canvas {
       background: #181818;
       border-radius: 12px;
       padding: 8px;
+      width: 100% !important;
+      height: 360px !important;
+      display: block;
     }
   </style>
 </head>
 
 <body>
   <h2>VN Gold Charts with Indicators</h2>
-
   <div class="chart-container" id="charts"></div>
 
   <script>
-    // ==== Utility functions ====
+    // ===== base options: remove point markers + gray grid =====
+    const baseOptions = {
+      interaction: { mode: 'index', intersect: false },
+      maintainAspectRatio: false,
+      elements: {
+        // global: hide point markers on lines
+        point: { radius: 0, hoverRadius: 6 },
+        line: { tension: 0.25, borderWidth: 2 }
+      },
+      plugins: {
+        legend: { labels: { color: '#ddd' } },
+        tooltip: {
+          backgroundColor: '#0b1220',
+          titleColor: '#fff',
+          bodyColor: '#e6eef6',
+          callbacks: {
+            label: function (ctx) {
+              const lab = ctx.dataset.label || '';
+              if (ctx.parsed && typeof ctx.parsed.y !== 'undefined' && ctx.parsed.y !== null) {
+                return lab + ': ' + Number(ctx.parsed.y).toLocaleString(undefined, { maximumFractionDigits: 2 });
+              }
+              return lab;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#bfc9d6', maxRotation: 45, minRotation: 45 },
+          grid: { color: '#444' } // <-- gray grid
+        },
+        y: {
+          ticks: { color: '#bfc9d6' },
+          grid: { color: '#444' } // <-- gray grid
+        }
+      }
+    };
+
+    // ===== indicator functions (unchanged logic) =====
     function calcEMA(prices, period) {
       const k = 2 / (period + 1);
-      let emaArray = [];
       let ema = prices[0];
-      emaArray.push(ema);
-      for (let i = 1; i < prices.length; i++) {
-        ema = prices[i] * k + ema * (1 - k);
-        emaArray.push(ema);
-      }
-      return emaArray;
+      const out = [ema];
+      for (let i = 1; i < prices.length; i++) { ema = prices[i] * k + ema * (1 - k); out.push(ema); }
+      return out;
     }
-
     function calcSMA(prices, period) {
-      let sma = [];
-      for (let i = 0; i < prices.length; i++) {
-        if (i < period - 1) {
-          sma.push(null);
-        } else {
-          let sum = 0;
-          for (let j = 0; j < period; j++) sum += prices[i - j];
-          sma.push(sum / period);
-        }
-      }
-      return sma;
+      return prices.map((_, i) => i < period - 1 ? null : prices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period);
     }
-
     function calcStdDev(prices, period) {
-      let stddev = [];
-      for (let i = 0; i < prices.length; i++) {
-        if (i < period - 1) {
-          stddev.push(null);
-        } else {
-          let subset = prices.slice(i - period + 1, i + 1);
-          let mean = subset.reduce((a, b) => a + b, 0) / period;
-          let variance = subset.reduce((a, b) => a + (b - mean) ** 2, 0) / period;
-          stddev.push(Math.sqrt(variance));
-        }
-      }
-      return stddev;
+      return prices.map((_, i) => {
+        if (i < period - 1) return null;
+        const s = prices.slice(i - period + 1, i + 1);
+        const mean = s.reduce((a, b) => a + b, 0) / period;
+        return Math.sqrt(s.reduce((a, b) => a + (b - mean) ** 2, 0) / period);
+      });
     }
-
     function calcRSI(prices, period = 14) {
-      let rsi = [];
-      let gains = 0, losses = 0;
+      let rsi = [], gains = 0, losses = 0;
       for (let i = 1; i <= period; i++) {
-        let change = prices[i] - prices[i - 1];
-        if (change >= 0) gains += change;
-        else losses -= change;
+        const change = prices[i] - prices[i - 1];
+        if (change >= 0) gains += change; else losses += Math.abs(change);
       }
-      let avgGain = gains / period;
-      let avgLoss = losses / period;
-      rsi[period] = 100 - (100 / (1 + avgGain / avgLoss));
-
+      let avgGain = gains / period, avgLoss = losses / period;
+      rsi[period] = 100 - (100 / (1 + (avgLoss === 0 ? 999999 : avgGain / avgLoss)));
       for (let i = period + 1; i < prices.length; i++) {
-        let change = prices[i] - prices[i - 1];
+        const change = prices[i] - prices[i - 1];
         if (change >= 0) {
           avgGain = (avgGain * (period - 1) + change) / period;
           avgLoss = (avgLoss * (period - 1)) / period;
         } else {
           avgGain = (avgGain * (period - 1)) / period;
-          avgLoss = (avgLoss * (period - 1) - change) / period;
+          avgLoss = (avgLoss * (period - 1) + Math.abs(change)) / period;
         }
-        rsi[i] = 100 - (100 / (1 + avgGain / avgLoss));
+        rsi[i] = 100 - (100 / (1 + (avgLoss === 0 ? 999999 : avgGain / avgLoss)));
       }
       return rsi;
     }
-
     function calcMACD(prices) {
-      const ema12 = calcEMA(prices, 12);
-      const ema26 = calcEMA(prices, 26);
-      let macd = ema12.map((v, i) => v - ema26[i]);
-      let signal = calcEMA(macd.filter(v => v !== undefined), 9);
-      // align length
-      while (signal.length < macd.length) signal.unshift(null);
-      return { macd, signal };
+      const ema12 = calcEMA(prices, 12), ema26 = calcEMA(prices, 26);
+      const macd = ema12.map((v, i) => (typeof ema26[i] === 'number' ? v - ema26[i] : null));
+      // compute signal on macd (fill nulls with 0 while computing, then restore)
+      const macdForSignal = macd.map(v => v === null ? 0 : v);
+      const signalRaw = calcEMA(macdForSignal, 9);
+      const signal = signalRaw.map((v, i) => macd[i] === null ? null : v);
+      const hist = macd.map((v, i) => (v === null || signal[i] === null) ? null : v - signal[i]);
+      return { macd, signal, hist };
+    }
+    function calcBollinger(prices) {
+      const sma20 = calcSMA(prices, 20);
+      const sd20 = calcStdDev(prices, 20);
+      const upper = sma20.map((s, i) => s === null ? null : s + 2 * sd20[i]);
+      const lower = sma20.map((s, i) => s === null ? null : s - 2 * sd20[i]);
+      return { sma20, upper, lower };
     }
 
-    // ==== Chart Creation ====
+    // ===== create charts (use baseOptions and also per-dataset ensure pointRadius:0) =====
     function createCharts(containerId, title, labels, prices) {
-      const ema9 = calcEMA(prices, 9);
-      const ema21 = calcEMA(prices, 21);
-      const ema50 = calcEMA(prices, 50);
+      const ema9 = calcEMA(prices, 9), ema21 = calcEMA(prices, 21), ema50 = calcEMA(prices, 50);
       const { macd, signal } = calcMACD(prices);
       const rsi = calcRSI(prices, 14);
-      const sma20 = calcSMA(prices, 20);
-      const std20 = calcStdDev(prices, 20);
-      const upper = sma20.map((s, i) => (s && std20[i] ? s + 2 * std20[i] : null));
-      const lower = sma20.map((s, i) => (s && std20[i] ? s - 2 * std20[i] : null));
+      const { sma20, upper, lower } = calcBollinger(prices);
 
       const chartBox = document.createElement("div");
       chartBox.className = "chart-box";
@@ -172,131 +179,108 @@
         <canvas id="${title}-bollinger"></canvas>`;
       document.getElementById(containerId).appendChild(chartBox);
 
-      // EMA
+      // EMA (remove point markers per-dataset also via pointRadius: 0)
       new Chart(document.getElementById(`${title}-ema`), {
         type: "line",
         data: {
           labels,
           datasets: [
-            { label: "Price", data: prices, borderColor: "white", fill: false },
-            { label: "EMA 9", data: ema9, borderColor: "red", fill: false },
-            { label: "EMA 21", data: ema21, borderColor: "yellow", fill: false },
-            { label: "EMA 50", data: ema50, borderColor: "green", fill: false }
+            { label: "Price", data: prices, borderColor: "white", fill: false, pointRadius: 0 },
+            { label: "EMA 9", data: ema9, borderColor: "red", fill: false, pointRadius: 0 },
+            { label: "EMA 21", data: ema21, borderColor: "yellow", fill: false, pointRadius: 0 },
+            { label: "EMA 50", data: ema50, borderColor: "green", fill: false, pointRadius: 0 }
           ]
-        }
+        },
+        options: baseOptions
       });
 
-      // MACD
+      // MACD with histogram
       new Chart(document.getElementById(`${title}-macd`), {
         type: "bar",
         data: {
           labels,
           datasets: [
-            { type: "line", label: "MACD", data: macd, borderColor: "blue", borderWidth: 2, fill: false, yAxisID: "y", },
-            { type: "line", label: "Signal", data: signal, borderColor: "orange", borderWidth: 2, fill: false, yAxisID: "y", },
+            { type: "line", label: "MACD", data: macd, borderColor: "blue", borderWidth: 2, fill: false, pointRadius: 0 },
+            { type: "line", label: "Signal", data: signal, borderColor: "orange", borderWidth: 2, fill: false, pointRadius: 0 },
             {
-              type: "bar", label: "Histogram", data: macd.map((v, i) => v - signal[i]),
-              backgroundColor: function (ctx) {
-                let value = ctx.raw; return value >= 0 ? "rgba(0,200,0,0.6)" : "rgba(200,0,0,0.6)";
-              }, yAxisID: "y",
+              type: "bar", label: "Histogram", data: macd.map((v, i) => (v === null || signal[i] === null) ? null : (v - signal[i])),
+              backgroundColor: function (ctx) { return (ctx.raw >= 0) ? "rgba(0,200,0,0.6)" : "rgba(200,0,0,0.6)"; }
             }
           ]
         },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true
-            }
-          }
-        }
+        options: Object.assign({}, baseOptions, {
+          scales: { y: { beginAtZero: true, ticks: { color: '#bfc9d6' }, grid: { color: '#444' } }, x: baseOptions.scales.x }
+        })
       });
 
-      // RSI
+      // RSI (30 / 70 highlighted)
       new Chart(document.getElementById(`${title}-rsi`), {
         type: "line",
         data: {
           labels,
           datasets: [
-            { label: "RSI", data: rsi, borderColor: "teal", fill: false }
+            { label: "RSI", data: rsi, borderColor: "teal", fill: false, pointRadius: 0 }
           ]
         },
-        options: {
-          scales: {
-            y: { min: 0, max: 100 }
-          },
-          plugins: {
+        options: Object.assign({}, baseOptions, {
+          scales: { y: { min: 0, max: 100, ticks: { color: '#bfc9d6' }, grid: { color: '#444' } }, x: baseOptions.scales.x },
+          plugins: Object.assign({}, baseOptions.plugins, {
             annotation: {
               annotations: {
-                line30: {
-                  type: "line",
-                  yMin: 30,
-                  yMax: 30,
-                  borderColor: "yellow",
-                  borderWidth: 1,
-                  borderDash: [6, 6],
-                  label: {
-                    content: "30%",
-                    enabled: true,
-                    position: "start",
-                    color: "yellow"
-                  }
-                },
-                line70: {
-                  type: "line",
-                  yMin: 70,
-                  yMax: 70,
-                  borderColor: "yellow",
-                  borderWidth: 1,
-                  borderDash: [6, 6],
-                  label: {
-                    content: "70%",
-                    enabled: true,
-                    position: "start",
-                    color: "yellow"
-                  }
-                }
+                line30: { type: "line", yMin: 30, yMax: 30, borderColor: "yellow", borderWidth: 1, borderDash: [6, 6] },
+                line70: { type: "line", yMin: 70, yMax: 70, borderColor: "yellow", borderWidth: 1, borderDash: [6, 6] }
               }
             }
-          }
-        }
+          })
+        })
       });
 
-
-      // Bollinger Bands
+      // Bollinger
       new Chart(document.getElementById(`${title}-bollinger`), {
         type: "line",
         data: {
           labels,
           datasets: [
-            { label: "Price", data: prices, borderColor: "white", fill: false },
-            { label: "SMA 20", data: sma20, borderColor: "blue", fill: false },
-            { label: "Upper Band", data: upper, borderColor: "green", borderDash: [5, 5], fill: false },
-            { label: "Lower Band", data: lower, borderColor: "red", borderDash: [5, 5], fill: false }
+            { label: "Price", data: prices, borderColor: "white", fill: false, pointRadius: 0 },
+            { label: "SMA 20", data: sma20, borderColor: "blue", fill: false, pointRadius: 0 },
+            { label: "Upper Band", data: upper, borderColor: "orange", borderDash: [5, 5], fill: false, pointRadius: 0 },
+            { label: "Lower Band", data: lower, borderColor: "orange", borderDash: [5, 5], fill: false, pointRadius: 0 }
           ]
-        }
+        },
+        options: baseOptions
       });
-    }
 
-    // ==== Main ====
+    } // end createCharts
+
+    // ==== Main: fetch + create ====
     async function main() {
-      const response = await fetch(url);
-      const text = await response.text();
-      Papa.parse(text, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          const labels = [];
-          const buy = [];
-          const sell = [];
-          results.data.forEach(row => {
-            labels.push(row["Date"]);
-            buy.push(parseFloat(row["Buy"]));
-            sell.push(parseFloat(row["Sell"]));
-          });
-          createCharts("charts", "Buy", labels, buy);
-          createCharts("charts", "Sell", labels, sell);
-        }
-      });
+      if (typeof url === 'undefined') {
+        console.error('Biến "url" chưa khai báo. Tạo url.js với: const url = "https://docs.google.com/.../pub?output=csv";');
+        return;
+      }
+      try {
+        const response = await fetch(url);
+        const text = await response.text();
+        Papa.parse(text, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            const labels = [];
+            const buy = [];
+            const sell = [];
+            results.data.forEach(row => {
+              if (!row || !row.Date) return;
+              labels.push(row["Date"]);
+              buy.push(Number((row["Buy"] || row["buy"] || '').toString().replace(/,/g, '')) || null);
+              sell.push(Number((row["Sell"] || row["sell"] || '').toString().replace(/,/g, '')) || null);
+            });
+            createCharts("charts", "Buy", labels, buy);
+            createCharts("charts", "Sell", labels, sell);
+          }
+        });
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     main();

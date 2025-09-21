@@ -178,9 +178,9 @@
         data: {
           labels,
           datasets: [
-            { label: "Price", data: prices, borderColor: "black", fill: false },
+            { label: "Price", data: prices, borderColor: "purple", fill: false },
             { label: "EMA 9", data: ema9, borderColor: "red", fill: false },
-            { label: "EMA 21", data: ema21, borderColor: "blue", fill: false },
+            { label: "EMA 21", data: ema21, borderColor: "yellow", fill: false },
             { label: "EMA 50", data: ema50, borderColor: "green", fill: false }
           ]
         }
@@ -192,33 +192,13 @@
         data: {
           labels,
           datasets: [
+            { type: "line", label: "MACD", data: macd, borderColor: "purple", borderWidth: 2, fill: false, yAxisID: "y", },
+            { type: "line", label: "Signal", data: signal, borderColor: "orange", borderWidth: 2, fill: false, yAxisID: "y", },
             {
-              type: "line",
-              label: "MACD",
-              data: macd,
-              borderColor: "purple",
-              borderWidth: 2,
-              fill: false,
-              yAxisID: "y",
-            },
-            {
-              type: "line",
-              label: "Signal",
-              data: signal,
-              borderColor: "orange",
-              borderWidth: 2,
-              fill: false,
-              yAxisID: "y",
-            },
-            {
-              type: "bar",
-              label: "Histogram",
-              data: macd.map((v, i) => v - signal[i]),
+              type: "bar", label: "Histogram", data: macd.map((v, i) => v - signal[i]),
               backgroundColor: function (ctx) {
-                let value = ctx.raw;
-                return value >= 0 ? "rgba(0,200,0,0.6)" : "rgba(200,0,0,0.6)";
-              },
-              yAxisID: "y",
+                let value = ctx.raw; return value >= 0 ? "rgba(0,200,0,0.6)" : "rgba(200,0,0,0.6)";
+              }, yAxisID: "y",
             }
           ]
         },
@@ -251,7 +231,7 @@
                   type: "line",
                   yMin: 30,
                   yMax: 30,
-                  borderColor: "red",
+                  borderColor: "yellow",
                   borderWidth: 2,
                   borderDash: [6, 6],
                   label: {
@@ -265,7 +245,7 @@
                   type: "line",
                   yMin: 70,
                   yMax: 70,
-                  borderColor: "red",
+                  borderColor: "yellow",
                   borderWidth: 2,
                   borderDash: [6, 6],
                   label: {
@@ -282,13 +262,13 @@
       });
 
 
-      // Bollinger
+      // Bollinger Bands
       new Chart(document.getElementById(`${title}-bollinger`), {
         type: "line",
         data: {
           labels,
           datasets: [
-            { label: "Price", data: prices, borderColor: "black", fill: false },
+            { label: "Price", data: prices, borderColor: "purple", fill: false },
             { label: "SMA 20", data: sma20, borderColor: "blue", fill: false },
             { label: "Upper Band", data: upper, borderColor: "green", borderDash: [5, 5], fill: false },
             { label: "Lower Band", data: lower, borderColor: "red", borderDash: [5, 5], fill: false }

@@ -58,6 +58,38 @@
       flex-direction: column;
       gap: 20px;
     }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #555;
+      margin-bottom: 10px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      cursor: pointer;
+      background: #2a2a2a;
+      color: #ddd;
+      text-align: center;
+      border: none;
+      outline: none;
+      transition: background 0.3s;
+    }
+
+    .tab-btn.active {
+      background: #444;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
   </style>
 </head>
 
@@ -170,12 +202,30 @@
 
       const chartBox = document.createElement("div");
       chartBox.className = "chart-box";
-      chartBox.innerHTML = `<h3>${title}</h3>
-        <canvas id="${title}-ema"></canvas>
-        <canvas id="${title}-macd"></canvas>
-        <canvas id="${title}-rsi"></canvas>
-        <canvas id="${title}-bollinger"></canvas>`;
+      chartBox.innerHTML = `
+    <h3>${title}</h3>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="ema-${title}">EMA</button>
+      <button class="tab-btn" data-tab="macd-${title}">MACD</button>
+      <button class="tab-btn" data-tab="rsi-${title}">RSI</button>
+      <button class="tab-btn" data-tab="bollinger-${title}">Bollinger</button>
+    </div>
+    <div id="ema-${title}" class="tab-content active"><canvas id="${title}-ema"></canvas></div>
+    <div id="macd-${title}" class="tab-content"><canvas id="${title}-macd"></canvas></div>
+    <div id="rsi-${title}" class="tab-content"><canvas id="${title}-rsi"></canvas></div>
+    <div id="bollinger-${title}" class="tab-content"><canvas id="${title}-bollinger"></canvas></div>
+  `;
       document.getElementById(containerId).appendChild(chartBox);
+
+      // Tab switching
+      chartBox.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          chartBox.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+          chartBox.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+          btn.classList.add("active");
+          chartBox.querySelector("#" + btn.dataset.tab).classList.add("active");
+        });
+      });
 
       const commonOptions = {
         plugins: {
@@ -310,7 +360,7 @@
           container.appendChild(colSell);
           container.appendChild(colWorld);
 
-          createCharts(colSell.id = "colSell", "Sell", labels, sell);
+          createCharts(colSell.id = "colSell", "Vietnam", labels, sell);
           createCharts(colWorld.id = "colWorld", "World", labels, world);
         }
       });

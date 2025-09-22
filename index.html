@@ -25,16 +25,6 @@
       text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
     }
 
-    .chart-container {
-      width: 90%;
-      max-width: 1200px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    }
-
     .chart-box {
       background: linear-gradient(145deg, #1a1a1a, #575757);
       padding: 18px;
@@ -55,15 +45,26 @@
       border-radius: 12px;
       padding: 8px;
     }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      /* 2 cột bằng nhau */
+      gap: 20px;
+    }
+
+    .chart-column {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
   </style>
 </head>
 
 <body>
   <h2>VN Gold Charts with Indicators</h2>
-  
-  <div class="chart-container">
-    <canvas id="chart"></canvas>
-  </div>
+
+  <div id="charts" class="charts-grid"></div>
 
   <script>
     // ==== Utility functions ====
@@ -290,18 +291,27 @@
         skipEmptyLines: true,
         complete: (results) => {
           const labels = [];
-          // const buy = [];
           const sell = [];
           const world = [];
           results.data.forEach(row => {
             labels.push(row["Date"]);
-            // buy.push(parseFloat(row["Buy"]));
             sell.push(parseFloat(row["Sell"]));
             world.push(parseFloat(row["World"]));
           });
-          // createCharts("charts", "Buy", labels, buy);
-          createCharts("charts", "Sell", labels, sell);
-          createCharts("charts", "World", labels, world);
+
+          // Tạo 2 cột: Sell và World
+          const container = document.getElementById("charts");
+
+          const colSell = document.createElement("div");
+          const colWorld = document.createElement("div");
+          colSell.className = "chart-column";
+          colWorld.className = "chart-column";
+
+          container.appendChild(colSell);
+          container.appendChild(colWorld);
+
+          createCharts(colSell.id = "colSell", "Sell", labels, sell);
+          createCharts(colWorld.id = "colWorld", "World", labels, world);
         }
       });
     }

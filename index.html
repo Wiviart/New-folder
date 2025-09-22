@@ -25,6 +25,12 @@
       text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
     }
 
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
     .chart-box {
       background: linear-gradient(145deg, #1a1a1a, #575757);
       padding: 18px;
@@ -33,53 +39,28 @@
     }
 
     .chart-box h3 {
-      margin-bottom: 10px;
       text-align: center;
-      color: #f5f5f5;
-      font-size: 1.3rem;
-      letter-spacing: 1px;
-    }
-
-    canvas {
-      background: #3c3c3c;
-      border-radius: 12px;
-      padding: 8px;
-    }
-
-    .charts-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-
-    .chart-column {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+      margin-bottom: 10px;
     }
 
     .tabs {
       display: flex;
-      border-bottom: 1px solid #555;
+      justify-content: center;
       margin-bottom: 10px;
+      gap: 10px;
     }
 
     .tab-btn {
-      flex: 1;
-      padding: 10px;
-      cursor: pointer;
-      background: #2a2a2a;
-      color: #ddd;
-      text-align: center;
+      padding: 6px 12px;
+      background: #333;
       border: none;
-      outline: none;
-      transition: background 0.3s;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #fff;
     }
 
     .tab-btn.active {
-      background: #444;
-      color: #fff;
-      font-weight: bold;
+      background: #007bff;
     }
 
     .tab-content {
@@ -89,16 +70,21 @@
     .tab-content.active {
       display: block;
     }
+
+    canvas {
+      background: #3c3c3c;
+      border-radius: 12px;
+      padding: 8px;
+    }
   </style>
 </head>
 
 <body>
   <h2>VN Gold Charts with Indicators</h2>
-
   <div id="charts" class="charts-grid"></div>
 
   <script>
-    // ==== Utility functions ====
+    // Utility functions (EMA, SMA, RSI, MACD...)
     function calcEMA(prices, period) {
       const k = 2 / (period + 1);
       let emaArray = [];
@@ -110,7 +96,6 @@
       }
       return emaArray;
     }
-
     function findCrosses(shortEma, longEma, labels) {
       let crosses = [];
       for (let i = 1; i < shortEma.length; i++) {
@@ -123,7 +108,6 @@
       }
       return crosses;
     }
-
     function calcSMA(prices, period) {
       let sma = [];
       for (let i = 0; i < prices.length; i++) {
@@ -136,7 +120,6 @@
       }
       return sma;
     }
-
     function calcStdDev(prices, period) {
       let stddev = [];
       for (let i = 0; i < prices.length; i++) {
@@ -150,7 +133,6 @@
       }
       return stddev;
     }
-
     function calcRSI(prices, period = 14) {
       let rsi = [];
       let gains = 0, losses = 0;
@@ -161,7 +143,6 @@
       let avgGain = gains / period;
       let avgLoss = losses / period;
       rsi[period] = 100 - (100 / (1 + avgGain / avgLoss));
-
       for (let i = period + 1; i < prices.length; i++) {
         let change = prices[i] - prices[i - 1];
         if (change >= 0) {
@@ -175,7 +156,6 @@
       }
       return rsi;
     }
-
     function calcMACD(prices) {
       const ema12 = calcEMA(prices, 12);
       const ema26 = calcEMA(prices, 26);
@@ -185,7 +165,8 @@
       return { macd, signal };
     }
 
-    // ==== Chart Creation ====
+    let charts = {}; // lưu chart
+
     function createCharts(containerId, title, labels, prices) {
       const ema9 = calcEMA(prices, 9);
       const ema21 = calcEMA(prices, 21);
@@ -199,30 +180,18 @@
 
       const chartBox = document.createElement("div");
       chartBox.className = "chart-box";
-      chartBox.innerHTML = `
-        <h3>${title}</h3>
+      chartBox.innerHTML = `<h3>${title}</h3>
         <div class="tabs">
-          <button class="tab-btn active" data-tab="ema-${title}">EMA</button>
-          <button class="tab-btn" data-tab="macd-${title}">MACD</button>
-          <button class="tab-btn" data-tab="rsi-${title}">RSI</button>
-          <button class="tab-btn" data-tab="bollinger-${title}">Bollinger</button>
+          <button class="tab-btn active" data-tab="${title}-ema">EMA</button>
+          <button class="tab-btn" data-tab="${title}-macd">MACD</button>
+          <button class="tab-btn" data-tab="${title}-rsi">RSI</button>
+          <button class="tab-btn" data-tab="${title}-bollinger">Bollinger</button>
         </div>
-        <div id="ema-${title}" class="tab-content active"><canvas id="${title}-ema"></canvas></div>
-        <div id="macd-${title}" class="tab-content"><canvas id="${title}-macd"></canvas></div>
-        <div id="rsi-${title}" class="tab-content"><canvas id="${title}-rsi"></canvas></div>
-        <div id="bollinger-${title}" class="tab-content"><canvas id="${title}-bollinger"></canvas></div>
-      `;
+        <div id="${title}-ema" class="tab-content active"><canvas id="${title}-ema-canvas"></canvas></div>
+        <div id="${title}-macd" class="tab-content"><canvas id="${title}-macd-canvas"></canvas></div>
+        <div id="${title}-rsi" class="tab-content"><canvas id="${title}-rsi-canvas"></canvas></div>
+        <div id="${title}-bollinger" class="tab-content"><canvas id="${title}-bollinger-canvas"></canvas></div>`;
       document.getElementById(containerId).appendChild(chartBox);
-
-      // Tab switching
-      chartBox.querySelectorAll(".tab-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          chartBox.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-          chartBox.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-          btn.classList.add("active");
-          chartBox.querySelector("#" + btn.dataset.tab).classList.add("active");
-        });
-      });
 
       const commonOptions = {
         plugins: {
@@ -244,60 +213,40 @@
       const crosses = findCrosses(ema9, ema21, labels);
 
       // EMA
-      new Chart(document.getElementById(`${title}-ema`), {
+      charts[`${title}-ema-canvas`] = new Chart(document.getElementById(`${title}-ema-canvas`), {
         type: "line",
         data: {
           labels,
           datasets: [
-            { label: "Price", data: prices, borderColor: "white", fill: false, pointRadius: 0 },
-            { label: "EMA 9", data: ema9, borderColor: "red", fill: false, pointRadius: 0 },
-            { label: "EMA 21", data: ema21, borderColor: "yellow", fill: false, pointRadius: 0 },
-            { label: "EMA 50", data: ema50, borderColor: "green", fill: false, pointRadius: 0 },
-            {
-              label: "Golden Cross",
-              data: crosses.filter(c => c.type === "golden"),
-              pointBackgroundColor: "cyan",
-              showLine: false,
-              pointRadius: 6
-            },
-            {
-              label: "Death Cross",
-              data: crosses.filter(c => c.type === "death"),
-              pointBackgroundColor: "black",
-              showLine: false,
-              pointRadius: 6
-            }
+            { label: "Price", data: prices, borderColor: "white", pointRadius: 0 },
+            { label: "EMA 9", data: ema9, borderColor: "red", pointRadius: 0 },
+            { label: "EMA 21", data: ema21, borderColor: "yellow", pointRadius: 0 },
+            { label: "EMA 50", data: ema50, borderColor: "green", pointRadius: 0 },
+            { label: "Golden Cross", data: crosses.filter(c => c.type === "golden"), showLine: false, pointBackgroundColor: "cyan", pointRadius: 6 },
+            { label: "Death Cross", data: crosses.filter(c => c.type === "death"), showLine: false, pointBackgroundColor: "black", pointRadius: 6 }
           ]
         },
         options: commonOptions
       });
 
       // MACD
-      new Chart(document.getElementById(`${title}-macd`), {
+      charts[`${title}-macd-canvas`] = new Chart(document.getElementById(`${title}-macd-canvas`), {
         type: "bar",
         data: {
           labels,
           datasets: [
-            { type: "line", label: "MACD", data: macd, borderColor: "blue", borderWidth: 2, fill: false, pointRadius: 0 },
-            { type: "line", label: "Signal", data: signal, borderColor: "orange", borderWidth: 2, fill: false, pointRadius: 0 },
-            {
-              type: "bar", label: "Histogram", data: macd.map((v, i) => v - signal[i]),
-              backgroundColor: ctx => ctx.raw >= 0 ? "rgba(0,200,0,0.6)" : "rgba(200,0,0,0.6)"
-            }
+            { type: "line", label: "MACD", data: macd, borderColor: "blue", borderWidth: 2, pointRadius: 0 },
+            { type: "line", label: "Signal", data: signal, borderColor: "orange", borderWidth: 2, pointRadius: 0 },
+            { type: "bar", label: "Histogram", data: macd.map((v, i) => v - signal[i]), backgroundColor: ctx => ctx.raw >= 0 ? "rgba(0,200,0,0.6)" : "rgba(200,0,0,0.6)" }
           ]
         },
         options: commonOptions
       });
 
       // RSI
-      new Chart(document.getElementById(`${title}-rsi`), {
+      charts[`${title}-rsi-canvas`] = new Chart(document.getElementById(`${title}-rsi-canvas`), {
         type: "line",
-        data: {
-          labels,
-          datasets: [
-            { label: "RSI", data: rsi, borderColor: "teal", fill: false, pointRadius: 0 }
-          ]
-        },
+        data: { labels, datasets: [{ label: "RSI", data: rsi, borderColor: "teal", pointRadius: 0 }] },
         options: {
           ...commonOptions,
           scales: { y: { min: 0, max: 100, ticks: { color: "#ccc" }, grid: { color: "rgba(128,128,128,0.3)" } } },
@@ -314,22 +263,39 @@
       });
 
       // Bollinger
-      new Chart(document.getElementById(`${title}-bollinger`), {
+      charts[`${title}-bollinger-canvas`] = new Chart(document.getElementById(`${title}-bollinger-canvas`), {
         type: "line",
         data: {
           labels,
           datasets: [
-            { label: "Price", data: prices, borderColor: "white", fill: false, pointRadius: 0 },
-            { label: "SMA 20", data: sma20, borderColor: "blue", fill: false, pointRadius: 0 },
-            { label: "Upper Band", data: upper, borderColor: "green", borderDash: [5, 5], fill: false, pointRadius: 0 },
-            { label: "Lower Band", data: lower, borderColor: "red", borderDash: [5, 5], fill: false, pointRadius: 0 }
+            { label: "Price", data: prices, borderColor: "white", pointRadius: 0 },
+            { label: "SMA 20", data: sma20, borderColor: "blue", pointRadius: 0 },
+            { label: "Upper Band", data: upper, borderColor: "green", borderDash: [5, 5], pointRadius: 0 },
+            { label: "Lower Band", data: lower, borderColor: "red", borderDash: [5, 5], pointRadius: 0 }
           ]
         },
         options: commonOptions
       });
+
+      // Tab switching
+      chartBox.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          chartBox.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+          chartBox.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+          btn.classList.add("active");
+          const tabId = btn.dataset.tab;
+          const tabContent = chartBox.querySelector("#" + tabId);
+          tabContent.classList.add("active");
+          const canvas = tabContent.querySelector("canvas");
+          const chart = charts[canvas.id];
+          if (chart) {
+            chart.resize();
+            chart.update();
+          }
+        });
+      });
     }
 
-    // ==== Main ====
     async function main() {
       const response = await fetch(url);
       const text = await response.text();
@@ -345,26 +311,16 @@
             sell.push(parseFloat(row["Sell"]));
             world.push(parseFloat(row["World"]));
           });
-
           const container = document.getElementById("charts");
-
           const colSell = document.createElement("div");
-          colSell.className = "chart-column";
-          colSell.id = "colSell";
-
           const colWorld = document.createElement("div");
-          colWorld.className = "chart-column";
-          colWorld.id = "colWorld";
-
           container.appendChild(colSell);
           container.appendChild(colWorld);
-
-          createCharts("colSell", "Vietnam", labels, sell);
-          createCharts("colWorld", "World", labels, world);
+          createCharts(colSell.id = "colSell", "Vietnam", labels, sell);
+          createCharts(colWorld.id = "colWorld", "World", labels, world);
         }
       });
     }
-
     main();
   </script>
 </body>

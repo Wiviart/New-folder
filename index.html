@@ -279,13 +279,16 @@
           const labels = [];
           // const buy = [];
           const sell = [];
+          const world = [];
           results.data.forEach(row => {
             labels.push(row["Date"]);
             // buy.push(parseFloat(row["Buy"]));
             sell.push(parseFloat(row["Sell"]));
+            world.push(parseFloat(row["World"]));
           });
           // createCharts("charts", "Buy", labels, buy);
           createCharts("charts", "Sell", labels, sell);
+          createCharts("charts", "World", labels, world);
         }
       });
     }

@@ -49,7 +49,6 @@
     .charts-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      /* 2 cột bằng nhau */
       gap: 20px;
     }
 
@@ -116,11 +115,9 @@
       let crosses = [];
       for (let i = 1; i < shortEma.length; i++) {
         if (shortEma[i - 1] < longEma[i - 1] && shortEma[i] >= longEma[i]) {
-          // Golden Cross
           crosses.push({ x: labels[i], y: shortEma[i], type: "golden" });
         }
         if (shortEma[i - 1] > longEma[i - 1] && shortEma[i] <= longEma[i]) {
-          // Death Cross
           crosses.push({ x: labels[i], y: shortEma[i], type: "death" });
         }
       }
@@ -203,18 +200,18 @@
       const chartBox = document.createElement("div");
       chartBox.className = "chart-box";
       chartBox.innerHTML = `
-    <h3>${title}</h3>
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="ema-${title}">EMA</button>
-      <button class="tab-btn" data-tab="macd-${title}">MACD</button>
-      <button class="tab-btn" data-tab="rsi-${title}">RSI</button>
-      <button class="tab-btn" data-tab="bollinger-${title}">Bollinger</button>
-    </div>
-    <div id="ema-${title}" class="tab-content active"><canvas id="${title}-ema"></canvas></div>
-    <div id="macd-${title}" class="tab-content"><canvas id="${title}-macd"></canvas></div>
-    <div id="rsi-${title}" class="tab-content"><canvas id="${title}-rsi"></canvas></div>
-    <div id="bollinger-${title}" class="tab-content"><canvas id="${title}-bollinger"></canvas></div>
-  `;
+        <h3>${title}</h3>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="ema-${title}">EMA</button>
+          <button class="tab-btn" data-tab="macd-${title}">MACD</button>
+          <button class="tab-btn" data-tab="rsi-${title}">RSI</button>
+          <button class="tab-btn" data-tab="bollinger-${title}">Bollinger</button>
+        </div>
+        <div id="ema-${title}" class="tab-content active"><canvas id="${title}-ema"></canvas></div>
+        <div id="macd-${title}" class="tab-content"><canvas id="${title}-macd"></canvas></div>
+        <div id="rsi-${title}" class="tab-content"><canvas id="${title}-rsi"></canvas></div>
+        <div id="bollinger-${title}" class="tab-content"><canvas id="${title}-bollinger"></canvas></div>
+      `;
       document.getElementById(containerId).appendChild(chartBox);
 
       // Tab switching
@@ -231,7 +228,7 @@
         plugins: {
           legend: {
             labels: {
-              color: "#ffffff",   // ✅ legend chữ trắng
+              color: "#ffffff",
               boxWidth: 20,
               padding: 15,
               font: { size: 13 }
@@ -349,19 +346,21 @@
             world.push(parseFloat(row["World"]));
           });
 
-          // Tạo 2 cột: Sell và World
           const container = document.getElementById("charts");
 
           const colSell = document.createElement("div");
-          const colWorld = document.createElement("div");
           colSell.className = "chart-column";
+          colSell.id = "colSell";
+
+          const colWorld = document.createElement("div");
           colWorld.className = "chart-column";
+          colWorld.id = "colWorld";
 
           container.appendChild(colSell);
           container.appendChild(colWorld);
 
-          createCharts(colSell.id = "colSell", "Vietnam", labels, sell);
-          createCharts(colWorld.id = "colWorld", "World", labels, world);
+          createCharts("colSell", "Vietnam", labels, sell);
+          createCharts("colWorld", "World", labels, world);
         }
       });
     }

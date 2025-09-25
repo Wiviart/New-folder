@@ -3,64 +3,202 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>VN Gold Charts with Indicators</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Biểu đồ giá vàng SJC và vàng thế giới" />
+  <meta name="keywords" content="giá vàng, vàng SJC, vàng thế giới, biểu đồ vàng, phân tích kỹ thuật" />
+  <title>VN Gold Charts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
   <script src="url.js"></script>
+
   <style>
-    body {
-      font-family: "Segoe UI", Roboto, Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background: radial-gradient(circle at top, #373761, #121212);
-      color: #e0e0e0;
+    :root {
+      --bg-primary: #0f1724;
+      --bg-secondary: #111827;
+      --accent: #06b6d4;
+      --accent-hover: #0891b2;
+      --text-primary: #e6eef6;
+      --text-muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-light: rgba(255, 255, 255, 0.03);
+      --shadow: 0 8px 30px rgba(2, 6, 23, 0.7);
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    h2 {
-      margin: 15px 0 25px 0;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #071028 0%, #0b1220 50%, #0f1724 100%);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem;
+      line-height: 1.6;
+    }
+
+    /* --- Navbar Styles --- */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 24px;
+      background-color: var(--bg-secondary);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      box-sizing: border-box;
+      z-index: 1000;
+    }
+
+    .navbar-brand {
+      font-family: 'Inter', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .navbar-brand a {
+      background: linear-gradient(135deg, var(--text-primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+    }
+
+    .navbar-links {
+      list-style: none;
+      display: flex;
+      gap: 16px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .navbar-links a {
+      color: var(--text-primary);
+      text-decoration: none;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      transition: var(--transition);
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+
+    .navbar-links a:hover {
+      color: var(--accent-hover);
+      background-color: var(--border-light);
+    }
+
+    .navbar-links a.active {
+      background: linear-gradient(135deg, var(--accent), #3b82f6);
+      color: #042034;
+      font-weight: bold;
+      box-shadow: 0 2px 10px rgba(6, 182, 212, 0.2);
+    }
+
+    /* --- Main Content Styles --- */
+    .main-container {
+      width: 100%;
+      max-width: 100%;
+      margin-top: 80px;
+      animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    .header {
       text-align: center;
-      font-size: 1.8rem;
-      color: #ffffff;
-      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+      margin-bottom: 2rem;
+    }
+
+    .title {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--text-primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 1rem;
+      font-weight: 400;
     }
 
     .charts-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+      gap: 1.5rem;
     }
 
     .chart-box {
-      background: linear-gradient(145deg, #1a1a1a, #575757);
-      padding: 18px;
+      background: linear-gradient(145deg,
+          rgba(255, 255, 255, 0.025) 0%,
+          rgba(255, 255, 255, 0.01) 100%);
+      backdrop-filter: blur(10px);
       border-radius: 16px;
-      box-shadow: 8px 8px 16px #0e0e0e, -8px -8px 16px #2e2e2e;
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-light);
+      min-height: 600px;
+      position: relative;
     }
 
     .chart-box h3 {
+      margin: 0 0 1rem;
       text-align: center;
-      margin-bottom: 10px;
+      font-size: 1.25rem;
+      color: var(--text-primary);
+      font-weight: 600;
     }
 
     .tabs {
       display: flex;
       justify-content: center;
-      margin-bottom: 10px;
-      gap: 10px;
+      margin-bottom: 1rem;
+      gap: 0.5rem;
+      flex-wrap: wrap;
     }
 
     .tab-btn {
-      padding: 6px 12px;
-      background: #333;
-      border: none;
+      padding: 0.5rem 1rem;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border);
       border-radius: 8px;
       cursor: pointer;
-      color: #fff;
+      color: var(--text-primary);
+      font-weight: 500;
+      transition: var(--transition);
+    }
+
+    .tab-btn:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: var(--accent);
     }
 
     .tab-btn.active {
-      background: #007bff;
+      background: linear-gradient(135deg, var(--accent), #3b82f6);
+      color: #042034;
+      font-weight: bold;
+      box-shadow: 0 2px 10px rgba(6, 182, 212, 0.2);
+      border-color: transparent;
     }
 
     .tab-content {
@@ -72,16 +210,80 @@
     }
 
     canvas {
-      background: #3c3c3c;
+      background-color: var(--bg-secondary);
       border-radius: 12px;
       padding: 8px;
+      width: 100% !important;
+      height: 500px !important;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      opacity: 0.8;
+      margin-top: 2rem;
+    }
+
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      transition: var(--transition);
+    }
+
+    .footer a:hover {
+      color: var(--accent-hover);
+    }
+
+    /* --- Animations & Responsiveness --- */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 960px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 
 <body>
-  <h2>VN Gold Charts with Indicators</h2>
-  <div id="charts" class="charts-grid"></div>
+
+  <header>
+    <nav class="navbar">
+      <div class="navbar-brand">
+        <a href="index.html">Stock Analysis</a>
+      </div>
+      <ul class="navbar-links">
+        <li><a href="analysis.html">📊 Analysis</a></li>
+        <li><a href="chart.html">📈 Chart</a></li>
+        <li><a href="gold.html" class="active">🥇 VN Gold</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="main-container">
+    <header class="header">
+      <h1 class="title">VN Gold Charts</h1>
+      <p class="subtitle">Biểu đồ giá vàng SJC & thế giới</p>
+    </header>
+
+    <div id="charts" class="charts-grid"></div>
+
+    <footer class="footer">
+      <small>Dữ liệu được cập nhật hàng ngày.</small>
+    </footer>
+  </main>
 
   <script>
     // Utility functions (EMA, SMA, RSI, MACD...)
@@ -96,18 +298,28 @@
       }
       return emaArray;
     }
+
     function findCrosses(shortEma, longEma, labels) {
       let crosses = [];
       for (let i = 1; i < shortEma.length; i++) {
         if (shortEma[i - 1] < longEma[i - 1] && shortEma[i] >= longEma[i]) {
-          crosses.push({ x: labels[i], y: shortEma[i], type: "golden" });
+          crosses.push({
+            x: labels[i],
+            y: shortEma[i],
+            type: "golden"
+          });
         }
         if (shortEma[i - 1] > longEma[i - 1] && shortEma[i] <= longEma[i]) {
-          crosses.push({ x: labels[i], y: shortEma[i], type: "death" });
+          crosses.push({
+            x: labels[i],
+            y: shortEma[i],
+            type: "death"
+          });
         }
       }
       return crosses;
     }
+
     function calcSMA(prices, period) {
       let sma = [];
       for (let i = 0; i < prices.length; i++) {
@@ -120,6 +332,7 @@
       }
       return sma;
     }
+
     function calcStdDev(prices, period) {
       let stddev = [];
       for (let i = 0; i < prices.length; i++) {
@@ -133,12 +346,15 @@
       }
       return stddev;
     }
+
     function calcRSI(prices, period = 14) {
       let rsi = [];
-      let gains = 0, losses = 0;
+      let gains = 0,
+        losses = 0;
       for (let i = 1; i <= period; i++) {
         let change = prices[i] - prices[i - 1];
-        if (change >= 0) gains += change; else losses -= change;
+        if (change >= 0) gains += change;
+        else losses -= change;
       }
       let avgGain = gains / period;
       let avgLoss = losses / period;
@@ -156,59 +372,193 @@
       }
       return rsi;
     }
+
     function calcMACD(prices) {
       const ema12 = calcEMA(prices, 12);
       const ema26 = calcEMA(prices, 26);
       let macd = ema12.map((v, i) => v - ema26[i]);
       let signal = calcEMA(macd.filter(v => v !== undefined), 9);
       while (signal.length < macd.length) signal.unshift(null);
-      return { macd, signal };
+      return {
+        macd,
+        signal
+      };
+    }
+
+    // --- New Ichimoku Calculations ---
+    function calcIchimoku(highs, lows, periodTenkan = 9, periodKijun = 26, periodSenkou = 52) {
+      function getHighLow(arr, start, end) {
+        let subArray = arr.slice(start, end);
+        return {
+          max: Math.max(...subArray),
+          min: Math.min(...subArray)
+        };
+      }
+
+      const tenkan = [];
+      const kijun = [];
+      const senkouA = [];
+      const senkouB = [];
+      const chikou = [];
+
+      for (let i = 0; i < highs.length; i++) {
+        // Tenkan-sen (Conversion Line)
+        if (i >= periodTenkan - 1) {
+          let hl = getHighLow(highs, i - periodTenkan + 1, i + 1);
+          let ll = getHighLow(lows, i - periodTenkan + 1, i + 1);
+          tenkan.push((hl.max + ll.min) / 2);
+        } else {
+          tenkan.push(null);
+        }
+
+        // Kijun-sen (Base Line)
+        if (i >= periodKijun - 1) {
+          let hl = getHighLow(highs, i - periodKijun + 1, i + 1);
+          let ll = getHighLow(lows, i - periodKijun + 1, i + 1);
+          kijun.push((hl.max + ll.min) / 2);
+        } else {
+          kijun.push(null);
+        }
+
+        // Senkou Span A (Leading Span A)
+        const senkouAValue = tenkan[i] && kijun[i] ? (tenkan[i] + kijun[i]) / 2 : null;
+        senkouA.push(senkouAValue);
+
+        // Senkou Span B (Leading Span B)
+        if (i >= periodSenkou - 1) {
+          let hl = getHighLow(highs, i - periodSenkou + 1, i + 1);
+          let ll = getHighLow(lows, i - periodSenkou + 1, i + 1);
+          senkouB.push((hl.max + ll.min) / 2);
+        } else {
+          senkouB.push(null);
+        }
+
+        // Chikou Span (Lagging Span)
+        chikou.push(highs[i]);
+      }
+
+      // Shift Senkou Spans forward
+      const senkouAShifted = [...Array(periodKijun)].fill(null).concat(senkouA.slice(0, senkouA.length - periodKijun));
+      const senkouBShifted = [...Array(periodKijun)].fill(null).concat(senkouB.slice(0, senkouB.length - periodKijun));
+
+      // Shift Chikou Span backward
+      const chikouShifted = chikou.slice(periodKijun).concat([...Array(periodKijun)].fill(null));
+
+      return { tenkan, kijun, senkouA: senkouAShifted, senkouB: senkouBShifted, chikou: chikouShifted };
+    }
+
+    // --- New Stochastic Calculations ---
+    function calcStochastic(prices, periodK = 14, periodD = 3) {
+      let stochasticK = [];
+      let stochasticD = [];
+
+      for (let i = 0; i < prices.length; i++) {
+        if (i >= periodK - 1) {
+          let subset = prices.slice(i - periodK + 1, i + 1);
+          let C = prices[i];
+          let H = Math.max(...subset);
+          let L = Math.min(...subset);
+          let K = (C - L) / (H - L) * 100;
+          stochasticK.push(K);
+        } else {
+          stochasticK.push(null);
+        }
+      }
+
+      // Calculate %D (SMA of %K)
+      for (let i = 0; i < stochasticK.length; i++) {
+        if (i >= periodK - 1 + periodD - 1) {
+          let subset = stochasticK.slice(i - periodD + 1, i + 1);
+          let sum = subset.reduce((a, b) => a + b, 0);
+          stochasticD.push(sum / periodD);
+        } else {
+          stochasticD.push(null);
+        }
+      }
+
+      return { K: stochasticK, D: stochasticD };
     }
 
     let charts = {}; // lưu chart
+
+    // Tạo một đối tượng chứa các options chung cho tất cả biểu đồ
+    const commonChartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: "#ffffff",
+            boxWidth: 20,
+            padding: 15,
+            font: {
+              size: 13
+            }
+          },
+          // Đặt vị trí legend thống nhất
+          position: 'bottom'
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: "#ffffff"
+          },
+          grid: {
+            color: "rgba(200, 200, 200, 0.2)"
+          }
+        },
+        y: {
+          ticks: {
+            color: "#ffffff"
+          },
+          grid: {
+            color: "rgba(200, 200, 200, 0.2)"
+          }
+        }
+      },
+      elements: {
+        line: {
+          tension: 0.1
+        }
+      }
+    };
+
 
     function createCharts(containerId, title, labels, prices) {
       const ema9 = calcEMA(prices, 9);
       const ema21 = calcEMA(prices, 21);
       const ema50 = calcEMA(prices, 50);
-      const { macd, signal } = calcMACD(prices);
+      const {
+        macd,
+        signal
+      } = calcMACD(prices);
       const rsi = calcRSI(prices, 14);
       const sma20 = calcSMA(prices, 20);
       const std20 = calcStdDev(prices, 20);
       const upper = sma20.map((s, i) => (s && std20[i] ? s + 2 * std20[i] : null));
       const lower = sma20.map((s, i) => (s && std20[i] ? s - 2 * std20[i] : null));
+      const { tenkan, kijun, senkouA, senkouB, chikou } = calcIchimoku(prices, prices);
+      const { K, D } = calcStochastic(prices);
 
       const chartBox = document.createElement("div");
       chartBox.className = "chart-box";
       chartBox.innerHTML = `<h3>${title}</h3>
-        <div class="tabs">
-          <button class="tab-btn active" data-tab="${title}-ema">EMA</button>
-          <button class="tab-btn" data-tab="${title}-macd">MACD</button>
-          <button class="tab-btn" data-tab="${title}-rsi">RSI</button>
-          <button class="tab-btn" data-tab="${title}-bollinger">Bollinger</button>
-        </div>
-        <div id="${title}-ema" class="tab-content active"><canvas id="${title}-ema-canvas"></canvas></div>
-        <div id="${title}-macd" class="tab-content"><canvas id="${title}-macd-canvas"></canvas></div>
-        <div id="${title}-rsi" class="tab-content"><canvas id="${title}-rsi-canvas"></canvas></div>
-        <div id="${title}-bollinger" class="tab-content"><canvas id="${title}-bollinger-canvas"></canvas></div>`;
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="${title}-ema">EMA</button>
+                    <button class="tab-btn" data-tab="${title}-macd">MACD</button>
+                    <button class="tab-btn" data-tab="${title}-rsi">RSI</button>
+                    <button class="tab-btn" data-tab="${title}-bollinger">Bollinger</button>
+                    <button class="tab-btn" data-tab="${title}-ichimoku">Ichimoku</button>
+                    <button class="tab-btn" data-tab="${title}-stochastic">Stochastic</button>
+                </div>
+                <div id="${title}-ema" class="tab-content active"><canvas id="${title}-ema-canvas"></canvas></div>
+                <div id="${title}-macd" class="tab-content"><canvas id="${title}-macd-canvas"></canvas></div>
+                <div id="${title}-rsi" class="tab-content"><canvas id="${title}-rsi-canvas"></canvas></div>
+                <div id="${title}-bollinger" class="tab-content"><canvas id="${title}-bollinger-canvas"></canvas></div>
+                <div id="${title}-ichimoku" class="tab-content"><canvas id="${title}-ichimoku-canvas"></canvas></div>
+                <div id="${title}-stochastic" class="tab-content"><canvas id="${title}-stochastic-canvas"></canvas></div>`;
       document.getElementById(containerId).appendChild(chartBox);
-
-      const commonOptions = {
-        plugins: {
-          legend: {
-            labels: {
-              color: "#ffffff",
-              boxWidth: 20,
-              padding: 15,
-              font: { size: 13 }
-            }
-          }
-        },
-        scales: {
-          x: { ticks: { color: "#ccc" }, grid: { color: "rgba(128,128,128,0.3)" } },
-          y: { ticks: { color: "#ccc" }, grid: { color: "rgba(128,128,128,0.3)" } }
-        }
-      };
 
       const crosses = findCrosses(ema9, ema21, labels);
 
@@ -217,16 +567,56 @@
         type: "line",
         data: {
           labels,
-          datasets: [
-            { label: "Price", data: prices, borderColor: "white", pointRadius: 0 },
-            { label: "EMA 9", data: ema9, borderColor: "red", pointRadius: 0 },
-            { label: "EMA 21", data: ema21, borderColor: "yellow", pointRadius: 0 },
-            { label: "EMA 50", data: ema50, borderColor: "green", pointRadius: 0 },
-            { label: "Golden Cross", data: crosses.filter(c => c.type === "golden"), showLine: false, pointBackgroundColor: "cyan", pointRadius: 6 },
-            { label: "Death Cross", data: crosses.filter(c => c.type === "death"), showLine: false, pointBackgroundColor: "black", pointRadius: 6 }
+          datasets: [{
+            label: "Giá",
+            data: prices,
+            borderColor: "#ffffff",
+            borderWidth: 2,
+            pointBackgroundColor: "#ffffff",
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "EMA 9",
+            data: ema9,
+            borderColor: "#ff6384",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "EMA 21",
+            data: ema21,
+            borderColor: "#ffcc00",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "EMA 50",
+            data: ema50,
+            borderColor: "#06b6d4",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "Golden Cross",
+            data: crosses.filter(c => c.type === "golden"),
+            showLine: false,
+            backgroundColor: "#22c55e",
+            pointRadius: 6
+          },
+          {
+            label: "Death Cross",
+            data: crosses.filter(c => c.type === "death"),
+            showLine: false,
+            backgroundColor: "#ef4444",
+            pointRadius: 6
+          }
           ]
         },
-        options: commonOptions
+        options: commonChartOptions
       });
 
       // MACD
@@ -234,28 +624,88 @@
         type: "bar",
         data: {
           labels,
-          datasets: [
-            { type: "line", label: "MACD", data: macd, borderColor: "blue", borderWidth: 2, pointRadius: 0 },
-            { type: "line", label: "Signal", data: signal, borderColor: "orange", borderWidth: 2, pointRadius: 0 },
-            { type: "bar", label: "Histogram", data: macd.map((v, i) => v - signal[i]), backgroundColor: ctx => ctx.raw >= 0 ? "rgba(0,200,0,0.6)" : "rgba(200,0,0,0.6)" }
+          datasets: [{
+            type: "line",
+            label: "MACD",
+            data: macd,
+            borderColor: "#3b82f6",
+            borderWidth: 2,
+            pointBackgroundColor: "#3b82f6",
+            pointRadius: 0
+          },
+          {
+            type: "line",
+            label: "Đường tín hiệu",
+            data: signal,
+            borderColor: "#f97316",
+            borderWidth: 2,
+            pointBackgroundColor: "#f97316",
+            pointRadius: 0
+          },
+          {
+            type: "bar",
+            label: "Histogram",
+            data: macd.map((v, i) => v - signal[i]),
+            backgroundColor: ctx => {
+              const value = ctx.raw;
+              const prevValue = ctx.dataset.data[ctx.dataIndex - 1];
+
+              if (value >= 0) {
+                // Dương
+                return prevValue !== null && value > prevValue ? 'rgba(34, 197, 94, 1)' : 'rgba(34, 197, 94, 0.6)';
+              } else {
+                // Âm
+                return prevValue !== null && value < prevValue ? 'rgba(239, 68, 68, 1)' : 'rgba(239, 68, 68, 0.6)';
+              }
+            }
+          }
           ]
         },
-        options: commonOptions
+        options: commonChartOptions
       });
 
       // RSI
       charts[`${title}-rsi-canvas`] = new Chart(document.getElementById(`${title}-rsi-canvas`), {
         type: "line",
-        data: { labels, datasets: [{ label: "RSI", data: rsi, borderColor: "teal", pointRadius: 0 }] },
+        data: {
+          labels,
+          datasets: [{
+            label: "RSI",
+            data: rsi,
+            borderColor: "#06b6d4",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          }]
+        },
         options: {
-          ...commonOptions,
-          scales: { y: { min: 0, max: 100, ticks: { color: "#ccc" }, grid: { color: "rgba(128,128,128,0.3)" } } },
+          ...commonChartOptions,
+          scales: {
+            ...commonChartOptions.scales,
+            y: {
+              ...commonChartOptions.scales.y,
+              min: 0,
+              max: 100
+            }
+          },
           plugins: {
-            ...commonOptions.plugins,
+            ...commonChartOptions.plugins,
             annotation: {
               annotations: {
-                line30: { type: "line", yMin: 30, yMax: 30, borderColor: "yellow", borderDash: [6, 6] },
-                line70: { type: "line", yMin: 70, yMax: 70, borderColor: "yellow", borderDash: [6, 6] }
+                line30: {
+                  type: "line",
+                  yMin: 30,
+                  yMax: 30,
+                  borderColor: "rgba(255, 255, 255, 0.5)",
+                  borderDash: [6, 6]
+                },
+                line70: {
+                  type: "line",
+                  yMin: 70,
+                  yMax: 70,
+                  borderColor: "rgba(255, 255, 255, 0.5)",
+                  borderDash: [6, 6]
+                }
               }
             }
           }
@@ -267,15 +717,163 @@
         type: "line",
         data: {
           labels,
-          datasets: [
-            { label: "Price", data: prices, borderColor: "white", pointRadius: 0 },
-            { label: "SMA 20", data: sma20, borderColor: "blue", pointRadius: 0 },
-            { label: "Upper Band", data: upper, borderColor: "green", borderDash: [5, 5], pointRadius: 0 },
-            { label: "Lower Band", data: lower, borderColor: "red", borderDash: [5, 5], pointRadius: 0 }
+          datasets: [{
+            label: "Giá",
+            data: prices,
+            borderColor: "#ffffff",
+            borderWidth: 2,
+            pointBackgroundColor: "#ffffff",
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "SMA 20",
+            data: sma20,
+            borderColor: "#3b82f6",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "Dải trên",
+            data: upper,
+            borderColor: "#22c55e",
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "Dải dưới",
+            data: lower,
+            borderColor: "#ef4444",
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false
+          }
           ]
         },
-        options: commonOptions
+        options: commonChartOptions
       });
+
+      // Ichimoku Cloud
+      charts[`${title}-ichimoku-canvas`] = new Chart(document.getElementById(`${title}-ichimoku-canvas`), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Tenkan-sen",
+            data: tenkan,
+            borderColor: "#ffcc00",
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "Kijun-sen",
+            data: kijun,
+            borderColor: "#e36464",
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "Senkou A",
+            data: senkouA,
+            borderColor: "#06b6d4",
+            borderWidth: 0,
+            pointRadius: 0,
+            fill: "+1",
+            backgroundColor: "rgba(6, 182, 212, 0.2)"
+          },
+          {
+            label: "Senkou B",
+            data: senkouB,
+            borderColor: "#ffcc00",
+            borderWidth: 0,
+            pointRadius: 0,
+            fill: "-2",
+            backgroundColor: "rgba(255, 204, 0, 0.2)"
+          },
+          {
+            label: "Chikou Span",
+            data: chikou,
+            borderColor: "#22c55e",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "Giá",
+            data: prices,
+            borderColor: "#ffffff",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          }
+          ]
+        },
+        options: commonChartOptions
+      });
+
+      // Stochastic Oscillator
+      charts[`${title}-stochastic-canvas`] = new Chart(document.getElementById(`${title}-stochastic-canvas`), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "%K",
+            data: K,
+            borderColor: "#06b6d4",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "%D",
+            data: D,
+            borderColor: "#e36464",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          }
+          ]
+        },
+        options: {
+          ...commonChartOptions,
+          scales: {
+            ...commonChartOptions.scales,
+            y: {
+              ...commonChartOptions.scales.y,
+              min: 0,
+              max: 100
+            }
+          },
+          plugins: {
+            ...commonChartOptions.plugins,
+            annotation: {
+              annotations: {
+                line20: {
+                  type: "line",
+                  yMin: 20,
+                  yMax: 20,
+                  borderColor: "rgba(255, 255, 255, 0.5)",
+                  borderDash: [6, 6]
+                },
+                line80: {
+                  type: "line",
+                  yMin: 80,
+                  yMax: 80,
+                  borderColor: "rgba(255, 255, 255, 0.5)",
+                  borderDash: [6, 6]
+                }
+              }
+            }
+          }
+        }
+      });
+
 
       // Tab switching
       chartBox.querySelectorAll(".tab-btn").forEach(btn => {
@@ -312,6 +910,7 @@
             world.push(parseFloat(row["World"]));
           });
           const container = document.getElementById("charts");
+          container.innerHTML = '';
           const colSell = document.createElement("div");
           const colWorld = document.createElement("div");
           container.appendChild(colSell);
